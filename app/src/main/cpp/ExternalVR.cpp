@@ -519,7 +519,7 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
       memcpy(&(immersiveController.targetRayPose.position), position.Data(), sizeof(immersiveController.targetRayPose.position));
     }
     // TODO:: We should add TargetRayMode::_end in moz_external_vr.h to help this check.
-    assert((uint8_t)mozilla::gfx::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
+    //ASSERT((uint8_t)mozilla::gfx::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
     immersiveController.targetRayMode = (mozilla::gfx::TargetRayMode)controller.targetRayMode;
     immersiveController.mappingType = mozilla::gfx::GamepadMappingType::XRStandard;
     immersiveController.selectActionStartFrameId = controller.selectActionStartFrameId;

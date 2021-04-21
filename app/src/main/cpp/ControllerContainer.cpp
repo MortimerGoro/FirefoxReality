@@ -338,8 +338,6 @@ ControllerContainer::SetButtonCount(const int32_t aControllerIndex, const uint32
 
 void
 ControllerContainer::SetButtonState(const int32_t aControllerIndex, const Button aWhichButton, const int32_t aImmersiveIndex, const bool aPressed, const bool aTouched, const float aImmersiveTrigger) {
-  assert(kControllerMaxButtonCount > aImmersiveIndex
-         && "Button index must < kControllerMaxButtonCount.");
 
   if (!m.Contains(aControllerIndex)) {
     return;
@@ -376,8 +374,6 @@ ControllerContainer::SetButtonState(const int32_t aControllerIndex, const Button
 
 void
 ControllerContainer::SetAxes(const int32_t aControllerIndex, const float* aData, const uint32_t aLength) {
-  assert(kControllerMaxAxes >= aLength
-         && "Axis length must <= kControllerMaxAxes.");
 
   if (!m.Contains(aControllerIndex)) {
     return;
