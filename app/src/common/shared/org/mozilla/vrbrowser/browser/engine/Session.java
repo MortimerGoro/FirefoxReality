@@ -21,6 +21,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 
+import com.wpe.wpeview.WPEView;
+
 import org.mozilla.geckoview.AllowOrDeny;
 import org.mozilla.geckoview.Autocomplete;
 import org.mozilla.geckoview.ContentBlocking;
@@ -93,6 +95,7 @@ public class Session implements ContentBlocking.Delegate, GeckoSession.Navigatio
     private transient byte[] mPrivatePage;
     private transient boolean mFirstContentfulPaint;
     private transient long mKeepAlive;
+    public WPEView mWPEView;
 
     private static final List<String> FORCE_MOBILE_VIEWPORT = Collections.singletonList(".youtube.com");
 
@@ -875,6 +878,10 @@ public class Session implements ContentBlocking.Delegate, GeckoSession.Navigatio
     public void loadUri(String aUri, int flags) {
         if (aUri == null) {
             aUri = getHomeUri();
+        }
+        if (mWPEView != null) {
+            mWPEView.loadUrl(aUri);
+            //mWPEView.requestFocus();
         }
         if (mState.mSession != null) {
             Log.d(LOGTAG, "Loading URI: " + aUri);

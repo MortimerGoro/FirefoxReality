@@ -75,7 +75,7 @@ struct DeviceDelegateOculusVR::State {
   android_app* app = nullptr;
   bool initialized = false;
   bool applicationEntitled = false;
-  bool layersEnabled = true;
+  bool layersEnabled = false;
   ovrJava java = {};
   ovrMobile* ovr = nullptr;
   OculusSwapChainPtr eyeSwapChains[VRAPI_EYE_COUNT];

@@ -12,7 +12,7 @@ static ovrMatrix4f ovrMatrixFrom(const vrb::Matrix &aMatrix) {
   return m;
 }
 
-bool OculusLayer::sForceClip = false;
+bool OculusLayer::sForceClip = true;
 
 // OculusLayerQuad
 
@@ -41,8 +41,6 @@ OculusLayerQuad::Update(uint32_t aFrameIndex, const ovrTracking2& aTracking, ovr
   vrb::Matrix scale = vrb::Matrix::Identity();
   scale.ScaleInPlace(vrb::Vector(w * 0.5f, h * 0.5f, 1.0f));
 
-  bool clip = sForceClip;
-
   for (int i = 0; i < VRAPI_FRAME_LAYER_EYE_MAX; ++i) {
     device::Eye eye = i == 0 ? device::Eye::Left : device::Eye::Right;
     vrb::Matrix matrix = layer->GetView(eye).PostMultiply(layer->GetModelTransform(eye));
@@ -58,9 +56,8 @@ OculusLayerQuad::Update(uint32_t aFrameIndex, const ovrTracking2& aTracking, ovr
     ovrLayer.Textures[i].TextureRect.y = textureRect.mY;
     ovrLayer.Textures[i].TextureRect.width = textureRect.mWidth;
     ovrLayer.Textures[i].TextureRect.height = textureRect.mHeight;
-    clip = clip || !textureRect.IsDefault();
   }
-  SetClipEnabled(clip);
+  SetClipEnabled(true);
 
   ovrLayer.HeadPose = aTracking.HeadPose;
 }
@@ -111,7 +108,7 @@ OculusLayerCylinder::Update(uint32_t aFrameIndex, const ovrTracking2& aTracking,
   }
 
   if (sForceClip) {
-    SetClipEnabled(true);
+    SetClipEnabled(sForceClip);
   }
 }
 

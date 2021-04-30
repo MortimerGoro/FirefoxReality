@@ -194,7 +194,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
 
         mDownloadsManager = mWidgetManager.getServicesProvider().getDownloadsManager();
 
-        mIsRestoreEnabled = SettingsStore.getInstance(mContext).isRestoreTabsEnabled();
+        mIsRestoreEnabled = false;//SettingsStore.getInstance(mContext).isRestoreTabsEnabled();
         mWindowsState = restoreState();
         restoreWindows();
     }
@@ -1084,6 +1084,11 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
 
     @Override
     public void onTabsClicked() {
+        mFocusedWindow.showWPE();
+        if (true) {
+            return;
+        }
+
         if (mTabsWidget == null) {
             mTabsWidget = new TabsWidget(mContext);
             mTabsWidget.setTabDelegate(this);

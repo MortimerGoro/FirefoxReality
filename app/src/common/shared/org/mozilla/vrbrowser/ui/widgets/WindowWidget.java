@@ -36,6 +36,10 @@ import androidx.annotation.UiThread;
 import androidx.core.content.FileProvider;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.wpe.wpeview.WPEView;
+import com.wpe.wpeview.WPEViewClient;
+import com.wpe.wpeview.WebChromeClient;
+
 import org.mozilla.geckoview.AllowOrDeny;
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.GeckoSession;
@@ -70,6 +74,8 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -117,6 +123,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     private boolean mIsInVRVideoMode;
     private View mView;
     private Session mSession;
+    private WPEView mWPEView;
     private int mWindowId;
     private LibraryPanel mLibrary;
     private Windows.WindowPlacement mWindowPlacement = Windows.WindowPlacement.FRONT;
@@ -227,6 +234,39 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
         mViewModel.setWidth(mWidgetPlacement.width);
         mViewModel.setHeight(mWidgetPlacement.height);
+
+        mWPEView = new WPEView(aContext);
+        addView(mWPEView);
+        mSession.mWPEView = mWPEView;
+        mWPEView.setWebChromeClient(new WebChromeClient(){
+
+            @Override
+            public void onProgressChanged(WPEView view, int progress) {
+                super.onProgressChanged(view, progress);
+            }
+
+            @Override
+            public void onReceivedTitle(WPEView view, String title) {
+                super.onReceivedTitle(view, title);
+            }
+        });
+        mWPEView.setWPEViewClient(new WPEViewClient(){
+
+            @Override
+            public void onPageStarted(WPEView view, String url) {
+                Log.e(LOGTAG, "WPE onPageStarted1" + url);
+                super.onPageStarted(view, url);
+                Log.e(LOGTAG, "WPE onPageStarted2" + url);
+            }
+
+            @Override
+            public void onPageFinished(WPEView view, String url) {
+                Log.e(LOGTAG, "WPE onPageFinished1 " + url);
+                super.onPageFinished(view, url);
+                Log.e(LOGTAG, "WPE onPageFinished2 " + url);
+            }
+        });
+        //mWPEView.loadUrl("https://codepen.io/stivaliserna/full/jObPyKe");
     }
 
     @Override
@@ -511,6 +551,14 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         hidePanel(true);
     }
 
+    public void showWPE() {
+        //WPEView wpe = new WPEView(getContext());
+        //setView(wpe, true);
+        //wpe.loadUrl("https://www.as.com");
+        //GLCubeView view = new GLCubeView(getContext());
+        //setView(view, true);
+    }
+
     private void hidePanel(boolean switchSurface) {
         if (mView != null && mLibrary != null) {
             unsetView(mLibrary, switchSurface);
@@ -526,6 +574,10 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     public void pauseCompositor() {
         if (mSession == null) {
             return;
+        }
+
+        if (mWPEView != null) {
+            mWPEView.callSurfaceDestroyed();
         }
 
         mSession.surfaceDestroyed();
@@ -726,13 +778,31 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             if (mSurface != null) {
                 callSurfaceChanged();
             } else {
+                if (mWPEView != null) {
+                    mWPEView.callSurfaceDestroyed();
+                }
                 mSession.surfaceDestroyed();
             }
+
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    // this code will be executed after 2 seconds
+                    if (mFirstDrawCallback != null) {
+                        mFirstDrawCallback.run();
+                    }
+                }
+            }, 200);
         }
+
+
     }
 
     private void callSurfaceChanged() {
-        if (mSession != null && mSurface != null) {
+        if (mWPEView != null) {
+            mWPEView.callSurfaceChanged(mSurface, mWidth - mBorderWidth * 2, mHeight - mBorderWidth * 2);
+        }
+        if (false && mSession != null && mSurface != null) {
             mSession.surfaceChanged(mSurface, mBorderWidth, mBorderWidth, mWidth - mBorderWidth * 2, mHeight - mBorderWidth * 2);
             mSession.updateLastUse();
         }
@@ -788,7 +858,9 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             return;
         }
 
-        if (mView != null) {
+        if (mWPEView != null) {
+            mWPEView.dispatchTouchEvent(aEvent);
+        } else if (mView != null) {
             super.handleTouchEvent(aEvent);
 
         } else {
@@ -822,7 +894,9 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             requestFocusFromTouch();
         }
 
-        if (mView != null) {
+        if (mWPEView != null) {
+            //mWPEView.dispatch(aEvent);
+        } else if (mView != null) {
             super.handleHoverEvent(aEvent);
 
         } else {
@@ -1062,6 +1136,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             }
 
             mSession = aSession;
+            mSession.mWPEView = mWPEView;
 
             setupListeners(mSession);
             SessionStore.get().setActiveSession(mSession);

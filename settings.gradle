@@ -1,5 +1,8 @@
 include ':app'
 
+include ':wpe'
+project(':wpe').projectDir = new File('/home/mortimer/Projects/wpe/wpe')
+
 def wavebuild = new File('third_party/wavesdk/build.gradle')
 
 if (wavebuild.exists()) {
