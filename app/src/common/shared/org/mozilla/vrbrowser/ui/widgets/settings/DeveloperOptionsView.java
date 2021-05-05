@@ -19,7 +19,6 @@ import org.mozilla.vrbrowser.databinding.OptionsDeveloperBinding;
 import org.mozilla.vrbrowser.ui.views.settings.SwitchSetting;
 import org.mozilla.vrbrowser.ui.widgets.WidgetManagerDelegate;
 
-import static org.mozilla.vrbrowser.utils.ServoUtils.isServoAvailable;
 
 class DeveloperOptionsView extends SettingsView {
 
@@ -75,14 +74,6 @@ class DeveloperOptionsView extends SettingsView {
         } else {
             mBinding.webglOutOfProcessSwitch.setVisibility(View.GONE);
         }
-
-        if (!isServoAvailable()) {
-            mBinding.servoSwitch.setVisibility(View.GONE);
-
-        } else {
-            mBinding.servoSwitch.setOnCheckedChangeListener(mServoListener);
-            setServo(SettingsStore.getInstance(getContext()).isServoEnabled(), false);
-        }
     }
 
     private SwitchSetting.OnCheckedChangeListener mRemoteDebuggingListener = (compoundButton, value, doApply) -> {
@@ -109,18 +100,11 @@ class DeveloperOptionsView extends SettingsView {
         setWebGLOutOfProcess(value, doApply);
     };
 
-    private SwitchSetting.OnCheckedChangeListener mServoListener = (compoundButton, b, doApply) -> {
-        setServo(b, true);
-    };
 
     private OnClickListener mResetListener = (view) -> {
         boolean restart = false;
         if (mBinding.remoteDebuggingSwitch.isChecked() != SettingsStore.REMOTE_DEBUGGING_DEFAULT) {
             setRemoteDebugging(SettingsStore.REMOTE_DEBUGGING_DEFAULT, true);
-        }
-
-        if (mBinding.servoSwitch.isChecked() != SettingsStore.SERVO_DEFAULT) {
-            setServo(SettingsStore.SERVO_DEFAULT, true);
         }
 
         if (mBinding.performanceMonitorSwitch.isChecked() != SettingsStore.PERFORMANCE_MONITOR_DEFAULT) {
@@ -213,18 +197,6 @@ class DeveloperOptionsView extends SettingsView {
         if (doApply) {
             SettingsStore.getInstance(getContext()).setWebGLOutOfProcess(value);
             showRestartDialog();
-        }
-    }
-
-    private void setServo(boolean value, boolean doApply) {
-        mBinding.servoSwitch.setOnCheckedChangeListener(null);
-        mBinding.servoSwitch.setValue(value, false);
-        mBinding.servoSwitch.setOnCheckedChangeListener(mServoListener);
-
-        SettingsStore.getInstance(getContext()).setServoEnabled(value);
-
-        if (doApply) {
-            SessionStore.get().setServo(value);
         }
     }
 

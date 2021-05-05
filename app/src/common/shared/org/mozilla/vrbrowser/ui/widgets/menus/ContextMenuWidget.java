@@ -14,8 +14,8 @@ import android.webkit.URLUtil;
 
 import androidx.annotation.StringRes;
 
-import org.mozilla.geckoview.GeckoSession.ContentDelegate.ContextElement;
 import org.mozilla.vrbrowser.R;
+import org.mozilla.vrbrowser.browser.api.ContentDelegate;
 import org.mozilla.vrbrowser.downloads.DownloadJob;
 import org.mozilla.vrbrowser.telemetry.GleanMetricsService;
 import org.mozilla.vrbrowser.ui.widgets.WidgetManagerDelegate;
@@ -23,7 +23,6 @@ import org.mozilla.vrbrowser.ui.widgets.WidgetPlacement;
 import org.mozilla.vrbrowser.utils.StringUtils;
 
 import java.util.ArrayList;
-import java.util.function.Predicate;
 
 public class ContextMenuWidget extends MenuWidget {
     ArrayList<MenuItem> mItems;
@@ -83,7 +82,7 @@ public class ContextMenuWidget extends MenuWidget {
         mDismissCallback = aCallback;
     }
 
-    public void setContextElement(ContextElement aContextElement) {
+    public void setContextElement(ContentDelegate.ContextElement aContextElement) {
         mItems = new ArrayList<>();
         final WidgetManagerDelegate widgetManager = mWidgetManager;
         if (aContextElement.linkUri != null && !aContextElement.linkUri.isEmpty()) {
@@ -143,16 +142,16 @@ public class ContextMenuWidget extends MenuWidget {
             mItems.add(new MenuWidget.MenuItem(aContextElement.srcUri, 0, null));
         }
 
-        if (URLUtil.isNetworkUrl(aContextElement.srcUri) && aContextElement.type != ContextElement.TYPE_NONE) {
+        if (URLUtil.isNetworkUrl(aContextElement.srcUri) && aContextElement.type != ContentDelegate.ContextElement.TYPE_NONE) {
             @StringRes int copyText = R.string.context_menu_copy_image_location;
             @StringRes int srcText = R.string.context_menu_download_image;
             @StringRes int viewText = R.string.context_menu_view_image;
-            if (aContextElement.type == ContextElement.TYPE_VIDEO) {
+            if (aContextElement.type == ContentDelegate.ContextElement.TYPE_VIDEO) {
                 srcText = R.string.context_menu_download_video;
                 copyText = R.string.context_menu_copy_video_location;
                 viewText = R.string.context_menu_view_video;
 
-            } else if(aContextElement.type == ContextElement.TYPE_AUDIO) {
+            } else if(aContextElement.type == ContentDelegate.ContextElement.TYPE_AUDIO) {
                 srcText = R.string.context_menu_download_audio;
                 copyText = R.string.context_menu_copy_audio_location;
                 viewText = R.string.context_menu_view_audio;
@@ -201,7 +200,7 @@ public class ContextMenuWidget extends MenuWidget {
         mWidgetPlacement.height += 10.0f; // Link separator
     }
 
-    private void addClipboardClip(ContextElement aContextElement) {
+    private void addClipboardClip(ContentDelegate.ContextElement aContextElement) {
 
     }
 

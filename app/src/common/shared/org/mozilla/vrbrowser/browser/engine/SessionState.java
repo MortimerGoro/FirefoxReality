@@ -10,11 +10,11 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
-import org.json.JSONException;
-import org.mozilla.geckoview.GeckoDisplay;
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.browser.Media;
+import org.mozilla.vrbrowser.browser.api.DisplayAPI;
+import org.mozilla.vrbrowser.browser.api.SessionStateAPI;
+import org.mozilla.vrbrowser.browser.api.ProgressDelegate;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,20 +45,20 @@ public class SessionState {
     public boolean mCanGoForward;
     public boolean mIsLoading;
     public boolean mIsInputActive;
-    public transient GeckoSession.ProgressDelegate.SecurityInformation mSecurityInformation;
+    public transient ProgressDelegate.SecurityInformation mSecurityInformation;
     public String mUri = "";
     public String mPreviousUri;
     public String mTitle = "";
     public transient boolean mFullScreen;
-    public transient GeckoSession mSession;
-    public transient GeckoDisplay mDisplay;
+    public transient SessionAPI mSession;
+    public transient DisplayAPI mDisplay;
     public SessionSettings mSettings;
     public transient ArrayList<Media> mMediaElements = new ArrayList<>();
     public transient @WebXRState int mWebXRState = WEBXR_UNUSED;
     public transient @PopupState int mPopUpState = POPUP_UNUSED;
     public transient @DrmState int mDrmState = DRM_UNUSED;
-    @JsonAdapter(SessionState.GeckoSessionStateAdapter.class)
-    public GeckoSession.SessionState mSessionState;
+    @JsonAdapter(SessionState.APISessionStateAdapter.class)
+    public SessionStateAPI mSessionState;
     public long mLastUse;
     public String mRegion;
     public String mId = UUID.randomUUID().toString();
@@ -81,19 +81,19 @@ public class SessionState {
         return result;
     }
 
-    public static class GeckoSessionStateAdapter extends TypeAdapter<GeckoSession.SessionState> {
+    public static class APISessionStateAdapter extends TypeAdapter<SessionStateAPI> {
         @Override
-        public void write(JsonWriter out, GeckoSession.SessionState session) throws IOException {
+        public void write(JsonWriter out, SessionStateAPI session) throws IOException {
             out.jsonValue(session.toString());
         }
 
         @Override
-        public GeckoSession.SessionState read(JsonReader in) {
+        public SessionStateAPI read(JsonReader in) {
             try {
                 String session = new JsonParser().parse(in).toString();
-                return GeckoSession.SessionState.fromString(session);
+                return SessionStateAPI.fromString(session);
 
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 return null;
             }
         }
@@ -114,7 +114,7 @@ public class SessionState {
     public class SessionStateAdapterFactory implements TypeAdapterFactory {
         public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
             final TypeAdapter<T> delegate = gson.getDelegateAdapter(this, type);
-            final TypeAdapter<GeckoSession.SessionState> gsDelegate = new GeckoSessionStateAdapter();
+            final TypeAdapter<SessionStateAPI> gsDelegate = new APISessionStateAdapter();
 
             return new TypeAdapter<T>() {
                 public void write(JsonWriter out, T value) throws IOException {

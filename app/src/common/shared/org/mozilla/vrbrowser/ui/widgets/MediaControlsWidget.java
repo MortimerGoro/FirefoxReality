@@ -16,9 +16,9 @@ import android.widget.FrameLayout;
 
 import androidx.databinding.DataBindingUtil;
 
-import org.mozilla.geckoview.MediaElement;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.browser.Media;
+import org.mozilla.vrbrowser.browser.api.MediaElement;
 import org.mozilla.vrbrowser.databinding.MediaControlsBinding;
 import org.mozilla.vrbrowser.ui.views.MediaSeekBar;
 import org.mozilla.vrbrowser.ui.views.VolumeControl;

@@ -23,11 +23,11 @@ import mozilla.components.support.base.log.logger.Logger
 import mozilla.components.support.base.log.sink.AndroidLogSink
 import mozilla.components.support.rusthttp.RustHttpConfig
 import mozilla.components.support.rustlog.RustLog
-import org.mozilla.geckoview.AllowOrDeny
-import org.mozilla.geckoview.GeckoResult
-import org.mozilla.geckoview.GeckoSession
 import org.mozilla.vrbrowser.R
-import org.mozilla.vrbrowser.VRBrowserActivity
+import org.mozilla.vrbrowser.browser.api.AllowOrDeny
+import org.mozilla.vrbrowser.browser.api.NavigationDelegate
+import org.mozilla.vrbrowser.browser.api.ResultAPI
+import org.mozilla.vrbrowser.browser.api.SessionAPI
 import org.mozilla.vrbrowser.browser.engine.EngineProvider
 import org.mozilla.vrbrowser.telemetry.GleanMetricsService
 import org.mozilla.vrbrowser.ui.widgets.WidgetManagerDelegate
@@ -35,7 +35,7 @@ import org.mozilla.vrbrowser.utils.ConnectivityReceiver
 import org.mozilla.vrbrowser.utils.SystemUtils
 
 
-class Services(val context: Context, places: Places): GeckoSession.NavigationDelegate {
+class Services(val context: Context, places: Places): NavigationDelegate {
 
     private val LOGTAG = SystemUtils.createLogtag(Services::class.java)
 
@@ -121,7 +121,7 @@ class Services(val context: Context, places: Places): GeckoSession.NavigationDel
         }
     }
 
-    override fun onLoadRequest(geckoSession: GeckoSession, loadRequest: GeckoSession.NavigationDelegate.LoadRequest): GeckoResult<AllowOrDeny>? {
+    override fun onLoadRequest(geckoSession: SessionAPI, loadRequest: NavigationDelegate.LoadRequest): ResultAPI<AllowOrDeny>? {
         if (loadRequest.uri.startsWith(REDIRECT_URL)) {
             val parsedUri = Uri.parse(loadRequest.uri)
 
@@ -129,7 +129,7 @@ class Services(val context: Context, places: Places): GeckoSession.NavigationDel
                 val state = parsedUri.getQueryParameter("state") as String
                 val action = parsedUri.getQueryParameter("action") as String
 
-                val geckoResult = GeckoResult<AllowOrDeny>()
+                val geckoResult = ResultAPI<AllowOrDeny>()
 
                 // Notify the state machine about our success.
                 val result = accountManager.finishAuthenticationAsync(FxaAuthData(action.toAuthType(), code = code, state = state))
@@ -146,10 +146,10 @@ class Services(val context: Context, places: Places): GeckoSession.NavigationDel
 
                 return geckoResult
             }
-            return GeckoResult.DENY
+            return ResultAPI.DENY
         }
 
-        return GeckoResult.ALLOW
+        return ResultAPI.ALLOW
     }
 
 }

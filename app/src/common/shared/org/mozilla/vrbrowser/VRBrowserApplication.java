@@ -67,12 +67,10 @@ public class VRBrowserApplication extends Application implements AppServicesProv
         Looper.getMainLooper().getThread();
 
         SessionStore.prefOverrides(this);
-        GleanMetricsService.init(this, EngineProvider.INSTANCE.getDefaultClient(this));
     }
 
     protected void onActivityCreate(@NonNull Context activityContext) {
         onConfigurationChanged(activityContext.getResources().getConfiguration());
-        EngineProvider.INSTANCE.getDefaultGeckoWebExecutor(activityContext);
         mAppExecutors = new AppExecutors();
         mConnectivityManager = new ConnectivityReceiver(activityContext);
         mConnectivityManager.init();

@@ -11,9 +11,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Observer;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.PlatformActivity;
 import org.mozilla.vrbrowser.R;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.browser.engine.SessionState;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class PermissionDelegate implements GeckoSession.PermissionDelegate, WidgetManagerDelegate.PermissionListener {
+public class PermissionDelegate implements org.mozilla.vrbrowser.browser.api.PermissionDelegate, WidgetManagerDelegate.PermissionListener {
 
     static final int PERMISSION_REQUEST_CODE = 1143;
 
@@ -37,7 +37,8 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
     private Context mContext;
     private int mParentWidgetHandle;
     private WidgetManagerDelegate mWidgetManager;
-    private GeckoSession.PermissionDelegate.Callback mCallback;
+    //private GeckoSession.PermissionDelegate.Callback mCallback;
+    private org.mozilla.vrbrowser.browser.api.PermissionDelegate.Callback mCallback;
     private PermissionWidget mPermissionWidget;
     private SitePermissionViewModel mSitePermissionModel;
     private List<SitePermission> mSitePermissions;
@@ -89,8 +90,8 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
         mSitePermissions = sites;
     };
 
-    void handleWebXRPermission(GeckoSession aGeckoSession, final String aUri, final Callback aCallback) {
-        Session session = SessionStore.get().getSession(aGeckoSession);
+    void handleWebXRPermission(SessionAPI aSession, final String aUri, final Callback aCallback) {
+        Session session = SessionStore.get().getSession(aSession);
         if (session == null || !SettingsStore.getInstance(mContext).isWebXREnabled()) {
             aCallback.reject();
             return;
@@ -124,7 +125,7 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
     }
 
     @Override
-    public void onAndroidPermissionsRequest(GeckoSession aSession, String[] permissions, Callback aCallback) {
+    public void onAndroidPermissionsRequest(SessionAPI aSession, String[] permissions, Callback aCallback) {
         Log.d(LOGTAG, "onAndroidPermissionsRequest: " + Arrays.toString(permissions));
         ArrayList<String> missingPermissions = new ArrayList<>();
         ArrayList<String> filteredPermissions = new ArrayList<>();
@@ -156,7 +157,7 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
     }
 
     @Override
-    public void onContentPermissionRequest(GeckoSession aSession, String aUri, int aType, Callback callback) {
+    public void onContentPermissionRequest(SessionAPI aSession, String aUri, int aType, Callback callback) {
         Log.d(LOGTAG, "onContentPermissionRequest: " + aUri + " " + aType);
         if (aType == PERMISSION_XR) {
             handleWebXRPermission(aSession, aUri, callback);
@@ -216,11 +217,11 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
     }
 
     @Override
-    public void onMediaPermissionRequest(GeckoSession aSession, String aUri, MediaSource[] aVideo, MediaSource[] aAudio, final MediaCallback aMediaCallback) {
+    public void onMediaPermissionRequest(SessionAPI aSession, String aUri, String[] aVideo, String[] aAudio, final Callback aMediaCallback) {
         Log.d(LOGTAG, "onMediaPermissionRequest: " + aUri);
 
-        final MediaSource video = aVideo != null ? aVideo[0] : null;
-        final MediaSource audio = aAudio != null ? aAudio[0] : null;
+        final String video = aVideo != null ? aVideo[0] : null;
+        final String audio = aAudio != null ? aAudio[0] : null;
         PermissionWidget.PermissionType type;
         if (video != null && audio != null) {
             type = PermissionWidget.PermissionType.CameraAndMicrophone;
@@ -233,10 +234,11 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
             return;
         }
 
-        GeckoSession.PermissionDelegate.Callback callback = new GeckoSession.PermissionDelegate.Callback() {
+        org.mozilla.vrbrowser.browser.api.PermissionDelegate.Callback callback = new org.mozilla.vrbrowser.browser.api.PermissionDelegate.Callback() {
             @Override
             public void grant() {
-                aMediaCallback.grant(video, audio);
+                //aMediaCallback.grant(video, audio);
+                aMediaCallback.grant();
             }
 
             @Override
@@ -260,7 +262,7 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
     }
 
     // Handle app permissions that Gecko doesn't handle itself yet
-    public void onAppPermissionRequest(final GeckoSession aSession, String aUri, final String permission, final Callback callback) {
+    public void onAppPermissionRequest(final SessionAPI aSession, String aUri, final String permission, final Callback callback) {
         Log.d(LOGTAG, "onAppPermissionRequest: " + aUri);
 
         // If the permission is already granted we just grant
@@ -314,7 +316,7 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
         for (WindowWidget window: mWidgetManager.getWindows().getCurrentWindows()) {
             Session session = window.getSession();
             if (uri.equalsIgnoreCase(UrlUtils.getHost(session.getCurrentUri()))) {
-                session.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                session.reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
             }
         }
 
@@ -334,7 +336,7 @@ public class PermissionDelegate implements GeckoSession.PermissionDelegate, Widg
         for (WindowWidget window: mWidgetManager.getWindows().getCurrentWindows()) {
             Session session = window.getSession();
             if (uri.equalsIgnoreCase(UrlUtils.getHost(session.getCurrentUri()))) {
-                session.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                session.reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
             }
         }
 

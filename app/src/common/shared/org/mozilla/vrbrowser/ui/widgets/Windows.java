@@ -11,7 +11,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.VRBrowserApplication;
 import org.mozilla.vrbrowser.browser.Accounts;
@@ -20,6 +19,7 @@ import org.mozilla.vrbrowser.browser.Media;
 import org.mozilla.vrbrowser.browser.Services;
 import org.mozilla.vrbrowser.browser.SettingsStore;
 import org.mozilla.vrbrowser.browser.adapter.ComponentsAdapter;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.components.GeckoEngineSession;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.browser.engine.SessionState;
@@ -825,7 +825,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     }
 
     private void setWindowVisible(@NonNull WindowWidget aWindow, boolean aVisible) {
-        if (aVisible && (aWindow.getSession() != null) && (aWindow.getSession().getGeckoSession() == null)) {
+        if (aVisible && (aWindow.getSession() != null) && (aWindow.getSession().getSessionAPI() == null)) {
             setFirstPaint(aWindow, aWindow.getSession());
         }
         aWindow.setVisible(aVisible);
@@ -1084,11 +1084,6 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
 
     @Override
     public void onTabsClicked() {
-        mFocusedWindow.showWPE();
-        if (true) {
-            return;
-        }
-
         if (mTabsWidget == null) {
             mTabsWidget = new TabsWidget(mContext);
             mTabsWidget.setTabDelegate(this);
@@ -1111,13 +1106,13 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     }
 
     private void setFirstPaint(@NonNull final WindowWidget aWindow, @NonNull final Session aSession) {
-        if (aSession.getGeckoSession() == null) {
+        if (aSession.getSessionAPI() == null) {
             aWindow.waitForFirstPaint();
         } else {
             // If the new session has a GeckoSession there won't be a first paint event.
             // So trigger the first paint callback in case the window is grayed out
             // waiting for the first paint event.
-            aWindow.onFirstContentfulPaint(aSession.getGeckoSession());
+            aWindow.onFirstContentfulPaint(aSession.getSessionAPI());
         }
     }
 
@@ -1200,9 +1195,9 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     }
 
     @Nullable
-    private WindowWidget getWindowWithSession(GeckoSession aSession) {
+    private WindowWidget getWindowWithSession(SessionAPI aSession) {
         for (WindowWidget window: getCurrentWindows()) {
-            if (window.getSession().getGeckoSession() == aSession) {
+            if (window.getSession().getSessionAPI() == aSession) {
                 return window;
             }
         }

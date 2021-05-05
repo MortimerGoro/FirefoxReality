@@ -5,55 +5,18 @@
 package org.mozilla.vrbrowser.browser.engine
 
 import android.content.Context
-import org.mozilla.geckoview.ContentBlocking
-import org.mozilla.geckoview.GeckoRuntime
-import org.mozilla.geckoview.GeckoRuntimeSettings
-import org.mozilla.geckoview.GeckoWebExecutor
-import org.mozilla.vrbrowser.BuildConfig
-import org.mozilla.vrbrowser.browser.SettingsStore
-import org.mozilla.vrbrowser.browser.content.TrackingProtectionPolicy
-import org.mozilla.vrbrowser.browser.content.TrackingProtectionStore
-import org.mozilla.vrbrowser.crashreporting.CrashReporterService
+import mozilla.components.lib.fetch.httpurlconnection.HttpURLConnectionClient
+import org.mozilla.vrbrowser.browser.api.RuntimeAPI
 
 object EngineProvider {
 
-    private var runtime: GeckoRuntime? = null
-    private var executor: GeckoWebExecutor? = null
-    private var client: GeckoViewFetchClient? = null
+    private var client: HttpURLConnectionClient? = null
+    private var runtime: RuntimeAPI? = null
 
     @Synchronized
-    fun getOrCreateRuntime(context: Context): GeckoRuntime {
+    fun getOrCreateRuntime(context: Context): RuntimeAPI {
         if (runtime == null) {
-            val builder = GeckoRuntimeSettings.Builder()
-            val settingsStore = SettingsStore.getInstance(context)
-
-            val policy : TrackingProtectionPolicy = TrackingProtectionStore.getTrackingProtectionPolicy(context);
-            builder.crashHandler(CrashReporterService::class.java)
-            builder.contentBlocking(ContentBlocking.Settings.Builder()
-                    .antiTracking(policy.antiTrackingPolicy)
-                    .enhancedTrackingProtectionLevel(settingsStore.trackingProtectionLevel)
-                    .build())
-            builder.displayDensityOverride(settingsStore.displayDensity)
-            builder.remoteDebuggingEnabled(settingsStore.isRemoteDebuggingEnabled)
-            builder.displayDpiOverride(settingsStore.displayDpi)
-            builder.screenSizeOverride(settingsStore.maxWindowWidth, settingsStore.maxWindowHeight)
-            builder.useMultiprocess(true)
-            builder.inputAutoZoomEnabled(false)
-            builder.doubleTapZoomingEnabled(false)
-            builder.debugLogging(settingsStore.isDebugLoggingEnabled)
-            builder.consoleOutput(settingsStore.isDebugLoggingEnabled)
-            builder.loginAutofillEnabled(settingsStore.isAutoFillEnabled)
-
-            if (settingsStore.transparentBorderWidth > 0) {
-                builder.useMaxScreenDepth(true)
-            }
-
-            if (BuildConfig.DEBUG) {
-                builder.arguments(arrayOf("-purgecaches"))
-                builder.aboutConfigEnabled(true)
-            }
-
-            runtime = GeckoRuntime.create(context, builder.build())
+            runtime = RuntimeAPI(context)
         }
 
         return runtime!!
@@ -61,30 +24,14 @@ object EngineProvider {
 
     @Synchronized
     fun isRuntimeCreated(): Boolean {
-        return runtime != null
+        return true
     }
 
-    private fun createGeckoWebExecutor(context: Context): GeckoWebExecutor {
-        return GeckoWebExecutor(getOrCreateRuntime(context))
+    fun createClient(context: Context): HttpURLConnectionClient {
+        return HttpURLConnectionClient()
     }
 
-     fun getDefaultGeckoWebExecutor(context: Context): GeckoWebExecutor {
-        if (executor == null) {
-            executor = createGeckoWebExecutor(context)
-            client?.let { it.executor = executor }
-
-        }
-
-        return executor!!
-    }
-
-    fun createClient(context: Context): GeckoViewFetchClient {
-        val client = GeckoViewFetchClient(context)
-        client.executor = executor
-        return client
-    }
-
-    fun getDefaultClient(context: Context): GeckoViewFetchClient {
+    fun getDefaultClient(context: Context): HttpURLConnectionClient {
         if (client == null) {
             client = createClient(context)
         }

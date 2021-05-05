@@ -11,9 +11,9 @@ import androidx.annotation.Nullable;
 import com.mozilla.speechlibrary.utils.zip.UnzipCallback;
 import com.mozilla.speechlibrary.utils.zip.UnzipTask;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.browser.SettingsStore;
+import org.mozilla.vrbrowser.browser.api.PermissionDelegate;
 import org.mozilla.vrbrowser.downloads.Download;
 import org.mozilla.vrbrowser.downloads.DownloadJob;
 import org.mozilla.vrbrowser.downloads.DownloadsManager;
@@ -135,7 +135,7 @@ public class EnvironmentsManager implements DownloadsManager.DownloadsListener, 
                     mApplicationDelegate.requestPermission(
                                 job.getUri(),
                                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                new GeckoSession.PermissionDelegate.Callback() {
+                                new PermissionDelegate.Callback() {
                                     @Override
                                     public void grant() {
                                         mDownloadManager.startDownload(job);

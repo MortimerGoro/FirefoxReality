@@ -8,8 +8,8 @@ import kotlinx.coroutines.future.future
 import kotlinx.coroutines.launch
 import mozilla.components.service.location.LocationService
 import mozilla.components.service.location.MozillaLocationService
-import org.mozilla.vrbrowser.browser.engine.EngineProvider
 import org.mozilla.vrbrowser.browser.SettingsStore
+import org.mozilla.vrbrowser.browser.engine.EngineProvider
 import java.util.concurrent.CompletableFuture
 
 object GeolocationWrapper {

@@ -6,21 +6,15 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.mozilla.geckoview.ContentBlocking;
-import org.mozilla.geckoview.ContentBlockingController;
-import org.mozilla.geckoview.ContentBlockingController.ContentBlockingException;
-import org.mozilla.geckoview.GeckoRuntime;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.VRBrowserActivity;
 import org.mozilla.vrbrowser.browser.SettingsStore;
+import org.mozilla.vrbrowser.browser.api.RuntimeAPI;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.db.SitePermission;
 import org.mozilla.vrbrowser.ui.viewmodel.SitePermissionViewModel;
@@ -28,9 +22,6 @@ import org.mozilla.vrbrowser.ui.viewmodel.SitePermissionViewModel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static org.mozilla.vrbrowser.db.SitePermission.SITE_PERMISSION_TRACKING;
 
 public class TrackingProtectionStore implements DefaultLifecycleObserver,
         SharedPreferences.OnSharedPreferenceChangeListener {
@@ -48,8 +39,8 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     }
 
     private Context mContext;
-    private GeckoRuntime mRuntime;
-    private ContentBlockingController mContentBlockingController;
+    private RuntimeAPI mRuntime;
+    //private ContentBlockingController mContentBlockingController;
     private Lifecycle mLifeCycle;
     private SitePermissionViewModel mViewModel;
     private List<TrackingProtectionListener> mListeners;
@@ -57,11 +48,10 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     private List<SitePermission> mSitePermissions;
     private boolean mIsFirstUpdate;
 
-    public TrackingProtectionStore(@NonNull Context context,
-                                   @NonNull GeckoRuntime runtime) {
+    public TrackingProtectionStore(@NonNull Context context, @NonNull RuntimeAPI runtime) { //@NonNull GeckoRuntime runtime) {
         mContext = context;
         mRuntime = runtime;
-        mContentBlockingController = mRuntime.getContentBlockingController();
+        // mContentBlockingController = mRuntime.getContentBlockingController();
         mListeners = new ArrayList<>();
         mSitePermissions = new ArrayList<>();
         mIsFirstUpdate = true;
@@ -103,11 +93,11 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
 
                 // Restore the site list on the permissions storage notification
                 if (mIsFirstUpdate) {
-                    List<ContentBlockingException> exceptions = sitePermissions
+                    /*List<ContentBlockingException> exceptions = sitePermissions
                             .stream()
                             .map(TrackingProtectionStore::toContentBlockingException)
                             .collect(Collectors.toList());
-                    mContentBlockingController.restoreExceptionList(exceptions);
+                    mContentBlockingController.restoreExceptionList(exceptions);*/
                     mIsFirstUpdate = false;
                 }
             }
@@ -121,19 +111,19 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     }
 
     public void contains(@NonNull Session session, Function<Boolean, Void> onResult) {
-        mContentBlockingController.checkException(session.getGeckoSession()).accept(aBoolean -> {
+        /*mContentBlockingController.checkException(session.getGeckoSession()).accept(aBoolean -> {
             if (aBoolean != null) {
                 onResult.apply(aBoolean);
 
             } else {
                 onResult.apply(false);
             }
-        });
+        });*/
     }
 
     public void fetchAll(Function<List<SitePermission>, Void> onResult) {
         final List<SitePermission> list = new ArrayList<>();
-        mContentBlockingController.saveExceptionList().accept(contentBlockingExceptions -> {
+        /*mContentBlockingController.saveExceptionList().accept(contentBlockingExceptions -> {
             if (contentBlockingExceptions != null) {
                 contentBlockingExceptions.forEach(exception -> {
                     SitePermission site = toSitePermission(exception);
@@ -143,11 +133,12 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
                 });
             }
             onResult.apply(list);
-        });
+        });*/
+        onResult.apply(list);
     }
 
     public void add(@NonNull Session session) {
-        mContentBlockingController.addException(session.getGeckoSession());
+        //mContentBlockingController.addException(session.getGeckoSession());
         mListeners.forEach(listener -> listener.onExcludedTrackingProtectionChange(
                 session.getCurrentUri(),
                 true,
@@ -156,7 +147,7 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     }
 
     public void remove(@NonNull Session session) {
-        mContentBlockingController.removeException(session.getGeckoSession());
+        //mContentBlockingController.removeException(session.getGeckoSession());
         mListeners.forEach(listener -> listener.onExcludedTrackingProtectionChange(
                 session.getCurrentUri(),
                 false,
@@ -165,10 +156,10 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     }
 
     public void remove(@NonNull SitePermission permission) {
-        ContentBlockingException exception = toContentBlockingException(permission);
+        /*ContentBlockingException exception = toContentBlockingException(permission);
         if (exception != null) {
             mContentBlockingController.removeException(exception);
-        }
+        }*/
         mListeners.forEach(listener -> listener.onExcludedTrackingProtectionChange(
                 permission.url,
                 false,
@@ -179,10 +170,10 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     public void removeAll() {
         // We can't use clearExceptionList as that clears also the private browsing exceptions
         mSitePermissions.forEach(permission -> {
-            ContentBlockingException exception = toContentBlockingException(permission);
+            /*ContentBlockingException exception = toContentBlockingException(permission);
             if (exception != null) {
                 mContentBlockingController.removeException(exception);
-            }
+            }*/
             mListeners.forEach(listener -> listener.onExcludedTrackingProtectionChange(
                     permission.url,
                     false,
@@ -192,7 +183,7 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
     }
 
     private void saveExceptions() {
-        mRuntime.getContentBlockingController().saveExceptionList().accept(contentBlockingExceptions -> {
+        /*mRuntime.getContentBlockingController().saveExceptionList().accept(contentBlockingExceptions -> {
             mViewModel.deleteAll(SITE_PERMISSION_TRACKING);
             if (contentBlockingExceptions != null) {
                 contentBlockingExceptions.forEach(exception -> {
@@ -202,10 +193,10 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
                     }
                 });
             }
-        });
+        });*/
     }
 
-    @Nullable
+    /*@Nullable
     private static SitePermission toSitePermission(@NonNull ContentBlockingException exception) {
         try {
             JSONObject json = exception.toJson();
@@ -235,35 +226,14 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
         }
 
         return null;
-    }
+    }*/
 
     private void setTrackingProtectionLevel(int level) {
-        ContentBlocking.Settings settings = mRuntime.getSettings().getContentBlocking();
-        TrackingProtectionPolicy policy = TrackingProtectionPolicy.recommended();
-        if (mRuntime != null) {
-            switch (level) {
-                case ContentBlocking.EtpLevel.NONE:
-                    policy = TrackingProtectionPolicy.none();
-                    break;
-                case ContentBlocking.EtpLevel.DEFAULT:
-                    policy = TrackingProtectionPolicy.recommended();
-                    break;
-                case ContentBlocking.EtpLevel.STRICT:
-                    policy = TrackingProtectionPolicy.strict();
-                    break;
-            }
-
-            settings.setEnhancedTrackingProtectionLevel(level);
-            settings.setStrictSocialTrackingProtection(policy.shouldBlockContent());
-            settings.setAntiTracking(policy.getAntiTrackingPolicy());
-            settings.setCookieBehavior(policy.getCookiePolicy());
-
-            mListeners.forEach(listener -> listener.onTrackingProtectionLevelUpdated(level));
-        }
+        mListeners.forEach(listener -> listener.onTrackingProtectionLevelUpdated(level));
     }
 
     public static TrackingProtectionPolicy getTrackingProtectionPolicy(Context mContext) {
-        int level = SettingsStore.getInstance(mContext).getTrackingProtectionLevel();
+        /*int level = SettingsStore.getInstance(mContext).getTrackingProtectionLevel();
         switch (level) {
             case ContentBlocking.EtpLevel.NONE:
                 return TrackingProtectionPolicy.none();
@@ -271,7 +241,7 @@ public class TrackingProtectionStore implements DefaultLifecycleObserver,
                 return TrackingProtectionPolicy.recommended();
             case ContentBlocking.EtpLevel.STRICT:
                 return TrackingProtectionPolicy.strict();
-        }
+        }*/
 
         return TrackingProtectionPolicy.recommended();
     }

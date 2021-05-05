@@ -34,9 +34,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.browser.SettingsStore;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
+import org.mozilla.vrbrowser.browser.api.TextInputDelegate;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.input.CustomKeyboard;
 import org.mozilla.vrbrowser.telemetry.GleanMetricsService;
@@ -70,7 +71,7 @@ import java.util.Locale;
 
 
 public class KeyboardWidget extends UIWidget implements CustomKeyboardView.OnKeyboardActionListener, AutoCompletionView.Delegate,
-        GeckoSession.TextInputDelegate, WidgetManagerDelegate.FocusChangeListener, VoiceSearchWidget.VoiceSearchDelegate, TextWatcher, WindowWidget.WindowListener {
+        TextInputDelegate, WidgetManagerDelegate.FocusChangeListener, VoiceSearchWidget.VoiceSearchDelegate, TextWatcher, WindowWidget.WindowListener {
 
     private static int MAX_CHARS_PER_POPUP_LINE = 10;
 
@@ -1283,13 +1284,13 @@ public class KeyboardWidget extends UIWidget implements CustomKeyboardView.OnKey
     // GeckoSession.TextInputDelegate
 
     @Override
-    public void restartInput(@NonNull GeckoSession session, int reason) {
+    public void restartInput(@NonNull SessionAPI session, int reason) {
         resetKeyboardLayout();
         mInputRestarted = true;
     }
 
     @Override
-    public void showSoftInput(@NonNull GeckoSession session) {
+    public void showSoftInput(@NonNull SessionAPI session) {
         if (mFocusedView != mAttachedWindow || getVisibility() != View.VISIBLE || mInputRestarted) {
             post(() -> updateFocusedView(mAttachedWindow));
         }
@@ -1297,14 +1298,14 @@ public class KeyboardWidget extends UIWidget implements CustomKeyboardView.OnKey
     }
 
     @Override
-    public void hideSoftInput(@NonNull GeckoSession session) {
+    public void hideSoftInput(@NonNull SessionAPI session) {
         if (mFocusedView == mAttachedWindow && getVisibility() == View.VISIBLE) {
             dismiss();
         }
     }
 
     @Override
-    public void updateSelection(@NonNull GeckoSession session, final int selStart, final int selEnd, final int compositionStart, final int compositionEnd) {
+    public void updateSelection(@NonNull SessionAPI session, final int selStart, final int selEnd, final int compositionStart, final int compositionEnd) {
         if (mFocusedView != mAttachedWindow || mInputConnection == null) {
             return;
         }

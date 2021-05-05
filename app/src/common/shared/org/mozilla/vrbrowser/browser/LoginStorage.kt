@@ -8,10 +8,6 @@ import kotlinx.coroutines.launch
 import mozilla.components.concept.storage.Login
 import mozilla.components.service.fxa.SyncEngine
 import mozilla.components.service.fxa.sync.GlobalSyncableStoreProvider
-import mozilla.components.service.sync.logins.GeckoLoginStorageDelegate
-import org.mozilla.vrbrowser.VRBrowserApplication
-import org.mozilla.vrbrowser.browser.components.GeckoLoginDelegateWrapper
-import org.mozilla.vrbrowser.browser.engine.EngineProvider
 import org.mozilla.vrbrowser.ui.widgets.AppServicesProvider
 import java.util.concurrent.CompletableFuture
 
@@ -23,8 +19,7 @@ class LoginStorage(
     private var storage = places.logins
 
     init {
-        EngineProvider.getOrCreateRuntime(context).loginStorageDelegate = GeckoLoginDelegateWrapper(
-                GeckoLoginStorageDelegate(places.logins))
+        //EngineProvider.getOrCreateRuntime(context).loginStorageDelegate = GeckoLoginDelegateWrapper(GeckoLoginStorageDelegate(places.logins))
         GlobalScope.launch(Dispatchers.IO) {
             places.logins.value.warmUp()
         }

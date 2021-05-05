@@ -1,14 +1,12 @@
 package org.mozilla.vrbrowser.browser.engine;
 
 import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.gecko.GeckoProfile;
 import org.mozilla.vrbrowser.BuildConfig;
 import org.mozilla.vrbrowser.browser.SettingsStore;
 import org.mozilla.vrbrowser.utils.SystemUtils;
@@ -56,7 +54,7 @@ class SessionUtils {
             throw new IllegalStateException("vrPrefsWorkAround must be called before creating the runtime");
         }
 
-        File path = GeckoProfile.initFromArgs(aContext, null).getDir();
+        File path = null; //GeckoProfile.initFromArgs(aContext, null).getDir();
 
         if (BuildConfig.TASKCLUSTER_BUILD) {
             checkPrefsFile(aContext, path.getAbsolutePath() + File.separator + "prefs.js");

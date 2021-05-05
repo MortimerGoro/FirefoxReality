@@ -18,10 +18,11 @@ import android.widget.TextView;
 
 import androidx.databinding.DataBindingUtil;
 
-import org.mozilla.geckoview.GeckoSession;
-import org.mozilla.geckoview.StorageController;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.browser.SettingsStore;
+import org.mozilla.vrbrowser.browser.api.PermissionDelegate;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
+import org.mozilla.vrbrowser.browser.api.StorageController;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
 import org.mozilla.vrbrowser.databinding.OptionsPrivacyBinding;
 import org.mozilla.vrbrowser.ui.views.settings.RadioGroupSetting;
@@ -160,7 +161,7 @@ class PrivacyOptionsView extends SettingsView {
             aButton.setChecked(true);
 
         } else {
-            mWidgetManager.requestPermission("", aPermission, new GeckoSession.PermissionDelegate.Callback() {
+            mWidgetManager.requestPermission("", aPermission, new PermissionDelegate.Callback() {
                 @Override
                 public void grant() {
                     aButton.setChecked(true);
@@ -362,7 +363,7 @@ class PrivacyOptionsView extends SettingsView {
         if (doApply) {
             SettingsStore.getInstance(getContext()).setWebXREnabled(value);
             for (WindowWidget window: mWidgetManager.getWindows().getCurrentWindows()) {
-                window.getSession().reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                window.getSession().reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
             }
         }
     }

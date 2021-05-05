@@ -422,6 +422,7 @@ dependencies {
     // Common
     implementation deps.lifecycle.runtime
     implementation deps.lifecycle.viewmodel
+    implementation deps.lifecycle.java8
     implementation deps.support.cardview
     implementation deps.support.app_compat
     implementation deps.support.vector_drawable
@@ -503,12 +504,11 @@ if (findProject(':wavesdk')) {
 
 dependencies {
 
+
+    implementation 'androidx.lifecycle:lifecycle-process:2.2.0'
     implementation 'com.google.android.material:material:1.0.0'
     implementation 'androidx.viewpager2:viewpager2:1.0.0'
     // "nightly" or "beta" or "release"
-    def branch = "nightly"
-    arm64Implementation deps.gecko_view."${branch}_arm64"
-    x86_64Implementation deps.gecko_view."${branch}_x86_64"
 }
 
 if (gradle.hasProperty('geckoViewLocalArm') || gradle.hasProperty('geckoViewLocalX86')) {

@@ -11,7 +11,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.audio.AudioEngine;
 import org.mozilla.vrbrowser.ui.views.settings.SettingsEditText;
@@ -97,14 +96,14 @@ public class AuthPromptWidget extends PromptWidget {
         });
     }
 
-    public void setAuthOptions(GeckoSession.PromptDelegate.AuthPrompt.AuthOptions aOptions) {
+    public void setAuthOptions(org.mozilla.vrbrowser.browser.api.PromptDelegate.AuthPrompt.AuthOptions aOptions) {
         if (aOptions.username != null) {
             mUsernameText.setText(aOptions.username);
         }
         if (aOptions.password != null) {
             mPasswordText.setText(aOptions.password);
         }
-        if ((aOptions.flags & GeckoSession.PromptDelegate.AuthPrompt.AuthOptions.Flags.ONLY_PASSWORD) != 0) {
+        if ((aOptions.flags & org.mozilla.vrbrowser.browser.api.PromptDelegate.AuthPrompt.AuthOptions.Flags.ONLY_PASSWORD) != 0) {
             // Hide the username input if basic auth dialog only requests a password.
             mUsernameText.setVisibility(View.GONE);
             mUsernameTextLabel.setVisibility(View.GONE);

@@ -240,9 +240,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
                     .withStoreSamples(storeData)
                     .withStoreTranscriptions(storeData)
                     .withProductTag(getContext().getString(R.string.voice_app_id));
-            mMozillaSpeechService.start(builder.build(),
-                    EngineProvider.INSTANCE.getDefaultGeckoWebExecutor(getContext()),
-                    mResultCallback);
+            mMozillaSpeechService.start(builder.build(), mResultCallback);
         }
     }
 

@@ -11,8 +11,8 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
+import org.mozilla.vrbrowser.browser.api.SelectionActionDelegate;
 import org.mozilla.vrbrowser.search.SearchEngineWrapper;
 import org.mozilla.vrbrowser.ui.views.UITextButton;
 import org.mozilla.vrbrowser.ui.widgets.UIWidget;
@@ -131,25 +131,25 @@ public class SelectionActionWidget extends UIWidget implements WidgetManagerDele
         mContainer.removeAllViews();
         ArrayList<UITextButton> buttons = new ArrayList<>();
 
-        if (aActions.contains(GeckoSession.SelectionActionDelegate.ACTION_CUT)) {
+        if (aActions.contains(SelectionActionDelegate.ACTION_CUT)) {
             buttons.add(createButton(
                     getContext().getString(R.string.context_menu_cut_text),
-                    GeckoSession.SelectionActionDelegate.ACTION_CUT, this::handleAction));
+                    SelectionActionDelegate.ACTION_CUT, this::handleAction));
         }
-        if (aActions.contains(GeckoSession.SelectionActionDelegate.ACTION_COPY)) {
+        if (aActions.contains(SelectionActionDelegate.ACTION_COPY)) {
             buttons.add(createButton(
                     getContext().getString(R.string.context_menu_copy_text),
-                    GeckoSession.SelectionActionDelegate.ACTION_COPY, this::handleAction));
+                    SelectionActionDelegate.ACTION_COPY, this::handleAction));
         }
-        if (aActions.contains(GeckoSession.SelectionActionDelegate.ACTION_PASTE)) {
+        if (aActions.contains(SelectionActionDelegate.ACTION_PASTE)) {
             buttons.add(createButton(
                     getContext().getString(R.string.context_menu_paste_text),
-                    GeckoSession.SelectionActionDelegate.ACTION_PASTE, this::handleAction));
+                    SelectionActionDelegate.ACTION_PASTE, this::handleAction));
         }
-        if (aActions.contains(GeckoSession.SelectionActionDelegate.ACTION_SELECT_ALL)) {
+        if (aActions.contains(SelectionActionDelegate.ACTION_SELECT_ALL)) {
             buttons.add(createButton(
                     getContext().getString(R.string.context_menu_select_all_text),
-                    GeckoSession.SelectionActionDelegate.ACTION_SELECT_ALL, this::handleAction));
+                    SelectionActionDelegate.ACTION_SELECT_ALL, this::handleAction));
         }
 
         if (mSelectionText != null && !mSelectionText.trim().isEmpty()) {

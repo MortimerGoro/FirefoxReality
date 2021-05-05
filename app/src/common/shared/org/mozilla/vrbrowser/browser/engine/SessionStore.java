@@ -8,17 +8,17 @@ import android.util.Pair;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.geckoview.GeckoRuntime;
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.BuildConfig;
 import org.mozilla.vrbrowser.VRBrowserApplication;
 import org.mozilla.vrbrowser.browser.BookmarksStore;
 import org.mozilla.vrbrowser.browser.HistoryStore;
-import org.mozilla.vrbrowser.browser.PermissionDelegate;
+import org.mozilla.vrbrowser.browser.api.PermissionDelegate;
 import org.mozilla.vrbrowser.browser.Services;
 import org.mozilla.vrbrowser.browser.SessionChangeListener;
 import org.mozilla.vrbrowser.browser.adapter.ComponentsAdapter;
-import org.mozilla.vrbrowser.browser.components.GeckoWebExtensionRuntime;
+import org.mozilla.vrbrowser.browser.api.RuntimeAPI;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
+import org.mozilla.vrbrowser.browser.components.WPEWebExtensionRuntime;
 import org.mozilla.vrbrowser.browser.content.TrackingProtectionStore;
 import org.mozilla.vrbrowser.browser.extensions.BuiltinExtension;
 import org.mozilla.vrbrowser.db.SitePermission;
@@ -41,7 +41,7 @@ import mozilla.components.feature.webcompat.reporter.WebCompatReporterFeature;
 import mozilla.components.lib.state.Store;
 
 public class SessionStore implements
-        GeckoSession.PermissionDelegate,
+        PermissionDelegate,
         SessionChangeListener,
         ComponentsAdapter.StoreUpdatesListener {
 
@@ -63,16 +63,16 @@ public class SessionStore implements
 
     private Executor mMainExecutor;
     private Context mContext;
-    private GeckoRuntime mRuntime;
+    private RuntimeAPI mRuntime;
     private ArrayList<Session> mSessions;
     private Session mActiveSession;
-    private PermissionDelegate mPermissionDelegate;
+    private org.mozilla.vrbrowser.browser.PermissionDelegate mPermissionDelegate;
     private BookmarksStore mBookmarksStore;
     private HistoryStore mHistoryStore;
     private Services mServices;
     private boolean mSuspendPending;
     private TrackingProtectionStore mTrackingProtectionStore;
-    private GeckoWebExtensionRuntime mWebExtensionRuntime;
+    private WPEWebExtensionRuntime mWebExtensionRuntime;
     private FxaWebChannelFeature mWebChannelsFeature;
     private Store.Subscription mStoreSubscription;
 
@@ -82,14 +82,13 @@ public class SessionStore implements
 
     public static void prefOverrides(Context context) {
         // FIXME: Once GeckoView has a prefs API
-        SessionUtils.vrPrefsWorkAround(context);
+        // SessionUtils.vrPrefsWorkAround(context);
     }
 
     public void initialize(Context context) {
         mContext = context;
+        mRuntime = EngineProvider.INSTANCE.getOrCreateRuntime(mContext);
         mMainExecutor = ((VRBrowserApplication)context.getApplicationContext()).getExecutors().mainThread();
-
-        mRuntime = EngineProvider.INSTANCE.getOrCreateRuntime(context);
 
         mTrackingProtectionStore = new TrackingProtectionStore(context, mRuntime);
         mTrackingProtectionStore.addListener(new TrackingProtectionStore.TrackingProtectionListener() {
@@ -99,7 +98,7 @@ public class SessionStore implements
                     String currentSessionHost = UrlUtils.getHost(existingSession.getCurrentUri());
                     String sessionHost = UrlUtils.getHost(url);
                     if (currentSessionHost.equals(sessionHost) && existingSession.isPrivateMode() == isPrivate) {
-                        existingSession.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                        existingSession.reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
                     }
                 });
             }
@@ -109,7 +108,7 @@ public class SessionStore implements
                 mSessions.forEach(session -> {
                     if (session.isActive()) {
                         session.updateTrackingProtection();
-                        session.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                        session.reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
                     } else {
                         session.suspend();
                     }
@@ -117,7 +116,7 @@ public class SessionStore implements
             }
         });
 
-        mWebExtensionRuntime = new GeckoWebExtensionRuntime(mContext, mRuntime);
+        mWebExtensionRuntime = new WPEWebExtensionRuntime();
 
         mServices = ((VRBrowserApplication)context.getApplicationContext()).getServices();
 
@@ -283,8 +282,8 @@ public class SessionStore implements
         return mSessions.stream().filter(session -> session.getId().equals(aId)).findFirst().orElse(null);
     }
 
-    public @Nullable Session getSession(GeckoSession aGeckoSession) {
-        return mSessions.stream().filter(session -> session.getGeckoSession() == aGeckoSession).findFirst().orElse(null);
+    public @Nullable Session getSession(SessionAPI aSession) {
+        return mSessions.stream().filter(session -> session.getSessionAPI() == aSession).findFirst().orElse(null);
     }
 
     public @NonNull List<Session> getSessionsByHost(@NonNull String aHost, boolean aIsPrivate) {
@@ -323,7 +322,7 @@ public class SessionStore implements
         int inactiveCount = 0;
         int suspendedCount = 0;
         for(Session session: mSessions) {
-            if (session.getGeckoSession() != null) {
+            if (session.getSessionAPI() != null) {
                 count++;
                 if (session.isActive()) {
                     activeCount++;
@@ -357,7 +356,7 @@ public class SessionStore implements
         return result;
     }
 
-    public void setPermissionDelegate(PermissionDelegate delegate) {
+    public void setPermissionDelegate(org.mozilla.vrbrowser.browser.PermissionDelegate delegate) {
         mPermissionDelegate = delegate;
     }
 
@@ -373,7 +372,7 @@ public class SessionStore implements
         return mTrackingProtectionStore;
     }
 
-    public GeckoWebExtensionRuntime getWebExtensionRuntime() {
+    public WPEWebExtensionRuntime getWebExtensionRuntime() {
         return mWebExtensionRuntime;
     }
 
@@ -408,75 +407,63 @@ public class SessionStore implements
     }
 
     public void onConfigurationChanged(Configuration newConfig) {
-        if (mRuntime != null) {
-            mRuntime.configurationChanged(newConfig);
-        }
-
         mBookmarksStore.onConfigurationChanged();
-    }
-
-    // Session Settings
-
-    public void setServo(final boolean enabled) {
-        for (Session session: mSessions) {
-            session.setServo(enabled);
-        }
     }
 
     // Runtime Settings
 
     public void setConsoleOutputEnabled(boolean enabled) {
-        if (mRuntime != null) {
+        /*if (mRuntime != null) {
             mRuntime.getSettings().setConsoleOutputEnabled(enabled);
-        }
+        }*/
     }
 
     public void setRemoteDebugging(final boolean enabled) {
-        if (mRuntime != null) {
+        /*if (mRuntime != null) {
             mRuntime.getSettings().setRemoteDebuggingEnabled(enabled);
-        }
+        }*/
     }
 
     public void setLocales(List<String> locales) {
-        if (mRuntime != null) {
+        /*if (mRuntime != null) {
             mRuntime.getSettings().setLocales(locales.toArray(new String[0]));
-        }
+        }*/
     }
 
     public void clearCache(long clearFlags) {
         LinkedList<Session> activeSession = new LinkedList<>();
         for (Session session: mSessions) {
-            if (session.getGeckoSession() != null) {
+            if (session.getSessionAPI() != null) {
                 session.suspend();
                 activeSession.add(session);
             }
         }
-        mRuntime.getStorageController().clearData(clearFlags).then(aVoid -> {
+        /*mRuntime.getStorageController().clearData(clearFlags).then(aVoid -> {
             for (Session session: activeSession) {
                 session.recreateSession();
             }
             return null;
-        });
+        });*/
     }
 
     // Permission Delegate
 
     @Override
-    public void onAndroidPermissionsRequest(@NonNull GeckoSession session, @Nullable String[] permissions, @NonNull Callback callback) {
+    public void onAndroidPermissionsRequest(@NonNull SessionAPI session, @Nullable String[] permissions, @NonNull Callback callback) {
         if (mPermissionDelegate != null) {
             mPermissionDelegate.onAndroidPermissionsRequest(session, permissions, callback);
         }
     }
 
     @Override
-    public void onContentPermissionRequest(@NonNull GeckoSession session, @Nullable String uri, int type, @NonNull Callback callback) {
+    public void onContentPermissionRequest(@NonNull SessionAPI session, @Nullable String uri, int type, @NonNull Callback callback) {
         if (mPermissionDelegate != null) {
             mPermissionDelegate.onContentPermissionRequest(session, uri, type, callback);
         }
     }
 
     @Override
-    public void onMediaPermissionRequest(@NonNull GeckoSession session, @NonNull String uri, @Nullable MediaSource[] video, @Nullable MediaSource[] audio, @NonNull MediaCallback callback) {
+    public void onMediaPermissionRequest(@NonNull SessionAPI session, @NonNull String uri, @Nullable String[] video, @Nullable String[] audio, @NonNull Callback callback) {
         if (mPermissionDelegate != null) {
             mPermissionDelegate.onMediaPermissionRequest(session, uri, video, audio, callback);
         }
@@ -524,16 +511,15 @@ public class SessionStore implements
     }
 
     @Override
-    public void onCurrentSessionChange(GeckoSession aOldSession, GeckoSession aSession) {
-        Session oldSession = getSession(aOldSession);
-        Session newSession = getSession(aSession);
+    public void onCurrentSessionChange(SessionAPI aOldSession, SessionAPI aNewSession) {
+        Session oldSession = SessionStore.get().getSession(aOldSession);
         if (oldSession != null) {
             ComponentsAdapter.get().unlink(oldSession);
         }
+        Session newSession = SessionStore.get().getSession(aNewSession);
         if (newSession != null) {
             ComponentsAdapter.get().link(newSession);
         }
-
     }
 
     @Override

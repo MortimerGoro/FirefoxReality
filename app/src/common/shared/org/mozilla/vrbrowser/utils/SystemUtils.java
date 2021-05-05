@@ -10,8 +10,6 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import org.mozilla.geckoview.CrashReporter;
-import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.vrbrowser.BuildConfig;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.VRBrowserActivity;
@@ -63,18 +61,6 @@ public class SystemUtils {
 
     private static void sendCrashFiles(@NonNull Context context, @NonNull final String aDumpFile, @NonNull final String aExtraFile) {
         ((VRBrowserApplication)context.getApplicationContext()).getExecutors().backgroundThread().post(() -> {
-            try {
-                GeckoResult<String> result = CrashReporter.sendCrashReport(context, new File(aDumpFile), new File(aExtraFile), context.getString(R.string.crash_app_name));
-
-                result.accept(crashID -> {
-                    Log.e(LOGTAG, "Submitted crash report id: " + crashID);
-                    Log.e(LOGTAG, "Report available at: " + CRASH_STATS_URL + crashID);
-                }, ex -> {
-                    Log.e(LOGTAG, "Failed to submit crash report: " + (ex != null ? ex.getMessage() : "Exception is NULL"));
-                });
-            } catch (IOException | URISyntaxException e) {
-                Log.e(LOGTAG, "Failed to send crash report: " + e.toString());
-            }
         });
     }
 

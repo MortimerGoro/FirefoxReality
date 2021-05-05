@@ -40,11 +40,6 @@ import com.wpe.wpeview.WPEView;
 import com.wpe.wpeview.WPEViewClient;
 import com.wpe.wpeview.WebChromeClient;
 
-import org.mozilla.geckoview.AllowOrDeny;
-import org.mozilla.geckoview.GeckoResult;
-import org.mozilla.geckoview.GeckoSession;
-import org.mozilla.geckoview.MediaElement;
-import org.mozilla.geckoview.PanZoomController;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.VRBrowserActivity;
 import org.mozilla.vrbrowser.VRBrowserApplication;
@@ -54,6 +49,16 @@ import org.mozilla.vrbrowser.browser.PromptDelegate;
 import org.mozilla.vrbrowser.browser.SessionChangeListener;
 import org.mozilla.vrbrowser.browser.SettingsStore;
 import org.mozilla.vrbrowser.browser.VideoAvailabilityListener;
+import org.mozilla.vrbrowser.browser.api.AllowOrDeny;
+import org.mozilla.vrbrowser.browser.api.ContentDelegate;
+import org.mozilla.vrbrowser.browser.api.HistoryDelegate;
+import org.mozilla.vrbrowser.browser.api.MediaElement;
+import org.mozilla.vrbrowser.browser.api.NavigationDelegate;
+import org.mozilla.vrbrowser.browser.api.PermissionDelegate;
+import org.mozilla.vrbrowser.browser.api.ProgressDelegate;
+import org.mozilla.vrbrowser.browser.api.ResultAPI;
+import org.mozilla.vrbrowser.browser.api.SelectionActionDelegate;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.browser.engine.SessionState;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
@@ -74,8 +79,6 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -86,11 +89,10 @@ import mozilla.components.concept.storage.PageVisit;
 import mozilla.components.concept.storage.RedirectSource;
 import mozilla.components.concept.storage.VisitType;
 
-import static org.mozilla.vrbrowser.utils.ServoUtils.isInstanceOfServoSession;
 
 public class WindowWidget extends UIWidget implements SessionChangeListener,
-        GeckoSession.ContentDelegate, GeckoSession.NavigationDelegate, VideoAvailabilityListener,
-        GeckoSession.HistoryDelegate, GeckoSession.ProgressDelegate, GeckoSession.SelectionActionDelegate,
+        ContentDelegate, NavigationDelegate, VideoAvailabilityListener,
+        HistoryDelegate, ProgressDelegate, SelectionActionDelegate,
         Session.WebXRStateChangedListener, Session.PopUpStateChangedListener,
         Session.DrmStateChangedListener, SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -123,7 +125,6 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     private boolean mIsInVRVideoMode;
     private View mView;
     private Session mSession;
-    private WPEView mWPEView;
     private int mWindowId;
     private LibraryPanel mLibrary;
     private Windows.WindowPlacement mWindowPlacement = Windows.WindowPlacement.FRONT;
@@ -157,7 +158,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     public void onSharedPreferenceChanged(@NonNull SharedPreferences sharedPreferences, String key) {
         if (key.equals(getContext().getString(R.string.settings_key_drm_playback))) {
             if (mViewModel.getIsDrmUsed().getValue().get() && getSession() != null) {
-                getSession().reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                getSession().reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
             }
         }
     }
@@ -228,45 +229,12 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         setFocusable(true);
         GleanMetricsService.openWindowEvent(mWindowId);
 
-        if (mSession.getGeckoSession() != null) {
-            onCurrentSessionChange(null, mSession.getGeckoSession());
+        if (mSession.getSessionAPI() != null) {
+            onCurrentSessionChange(null, mSession.getSessionAPI());
         }
 
         mViewModel.setWidth(mWidgetPlacement.width);
         mViewModel.setHeight(mWidgetPlacement.height);
-
-        mWPEView = new WPEView(aContext);
-        addView(mWPEView);
-        mSession.mWPEView = mWPEView;
-        mWPEView.setWebChromeClient(new WebChromeClient(){
-
-            @Override
-            public void onProgressChanged(WPEView view, int progress) {
-                super.onProgressChanged(view, progress);
-            }
-
-            @Override
-            public void onReceivedTitle(WPEView view, String title) {
-                super.onReceivedTitle(view, title);
-            }
-        });
-        mWPEView.setWPEViewClient(new WPEViewClient(){
-
-            @Override
-            public void onPageStarted(WPEView view, String url) {
-                Log.e(LOGTAG, "WPE onPageStarted1" + url);
-                super.onPageStarted(view, url);
-                Log.e(LOGTAG, "WPE onPageStarted2" + url);
-            }
-
-            @Override
-            public void onPageFinished(WPEView view, String url) {
-                Log.e(LOGTAG, "WPE onPageFinished1 " + url);
-                super.onPageFinished(view, url);
-                Log.e(LOGTAG, "WPE onPageFinished2 " + url);
-            }
-        });
-        //mWPEView.loadUrl("https://codepen.io/stivaliserna/full/jObPyKe");
     }
 
     @Override
@@ -531,7 +499,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
                 mViewModel.setIsPanelVisible(true);
                 if (mRestoreFirstPaint == null && !isFirstPaintReady() && (mFirstDrawCallback != null) && (mSurface != null)) {
                     final Runnable firstDrawCallback = mFirstDrawCallback;
-                    onFirstContentfulPaint(mSession.getGeckoSession());
+                    onFirstContentfulPaint(mSession.getSessionAPI());
                     mRestoreFirstPaint = () -> {
                         setFirstPaintReady(false);
                         setFirstDrawCallback(firstDrawCallback);
@@ -551,14 +519,6 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         hidePanel(true);
     }
 
-    public void showWPE() {
-        //WPEView wpe = new WPEView(getContext());
-        //setView(wpe, true);
-        //wpe.loadUrl("https://www.as.com");
-        //GLCubeView view = new GLCubeView(getContext());
-        //setView(view, true);
-    }
-
     private void hidePanel(boolean switchSurface) {
         if (mView != null && mLibrary != null) {
             unsetView(mLibrary, switchSurface);
@@ -574,10 +534,6 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     public void pauseCompositor() {
         if (mSession == null) {
             return;
-        }
-
-        if (mWPEView != null) {
-            mWPEView.callSurfaceDestroyed();
         }
 
         mSession.surfaceDestroyed();
@@ -686,7 +642,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         mActive = active;
         if (active) {
             SessionStore.get().setActiveSession(mSession);
-            GeckoSession session = mSession.getGeckoSession();
+            SessionAPI session = mSession.getSessionAPI();
             if (session != null) {
                 session.getTextInput().setView(this);
             }
@@ -748,7 +704,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             super.setSurfaceTexture(aTexture, aWidth, aHeight, aFirstDrawCallback);
 
         } else {
-            GeckoSession session = mSession.getGeckoSession();
+            SessionAPI session = mSession.getSessionAPI();
             if (session == null) {
                 return;
             }
@@ -778,31 +734,13 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             if (mSurface != null) {
                 callSurfaceChanged();
             } else {
-                if (mWPEView != null) {
-                    mWPEView.callSurfaceDestroyed();
-                }
                 mSession.surfaceDestroyed();
             }
-
-            new Timer().schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    // this code will be executed after 2 seconds
-                    if (mFirstDrawCallback != null) {
-                        mFirstDrawCallback.run();
-                    }
-                }
-            }, 200);
         }
-
-
     }
 
     private void callSurfaceChanged() {
-        if (mWPEView != null) {
-            mWPEView.callSurfaceChanged(mSurface, mWidth - mBorderWidth * 2, mHeight - mBorderWidth * 2);
-        }
-        if (false && mSession != null && mSurface != null) {
+        if (mSession != null && mSurface != null) {
             mSession.surfaceChanged(mSurface, mBorderWidth, mBorderWidth, mWidth - mBorderWidth * 2, mHeight - mBorderWidth * 2);
             mSession.updateLastUse();
         }
@@ -858,19 +796,16 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             return;
         }
 
-        if (mWPEView != null) {
-            mWPEView.dispatchTouchEvent(aEvent);
-        } else if (mView != null) {
+        if (mView != null) {
             super.handleTouchEvent(aEvent);
-
         } else {
             if (aEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 requestFocus();
                 requestFocusFromTouch();
             }
-            GeckoSession session = mSession.getGeckoSession();
+            SessionAPI session = mSession.getSessionAPI();
             if (session != null) {
-                session.getPanZoomController().onTouchEvent(aEvent);
+                session.onTouchEvent(aEvent);
             }
         }
     }
@@ -894,15 +829,12 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             requestFocusFromTouch();
         }
 
-        if (mWPEView != null) {
-            //mWPEView.dispatch(aEvent);
-        } else if (mView != null) {
+        if (mView != null) {
             super.handleHoverEvent(aEvent);
-
         } else {
-            GeckoSession session = mSession.getGeckoSession();
+            SessionAPI session = mSession.getSessionAPI();
             if (session != null && !isContextMenuVisible()) {
-                session.getPanZoomController().onMotionEvent(aEvent);
+                session.onMotionEvent(aEvent);
             }
         }
     }
@@ -1017,7 +949,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     @Override
     public void releaseWidget() {
         cleanListeners(mSession);
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
 
         mPrefs.unregisterOnSharedPreferenceChangeListener(this);
 
@@ -1136,7 +1068,6 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             }
 
             mSession = aSession;
-            mSession.mWPEView = mWPEView;
 
             setupListeners(mSession);
             SessionStore.get().setActiveSession(mSession);
@@ -1145,9 +1076,9 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
             if (hidePanel) {
                 if (oldSession != null) {
-                    onCurrentSessionChange(oldSession.getGeckoSession(), aSession.getGeckoSession());
+                    onCurrentSessionChange(oldSession.getSessionAPI(), aSession.getSessionAPI());
                 } else {
-                    onCurrentSessionChange(null, aSession.getGeckoSession());
+                    onCurrentSessionChange(null, aSession.getSessionAPI());
                 }
             }
 
@@ -1166,12 +1097,11 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         mViewModel.setIsDrmUsed(isEnabled);
     }
 
-    // Session.GeckoSessionChange
+    // Session.SessionAPIChange
     @Override
-    public void onCurrentSessionChange(GeckoSession aOldSession, GeckoSession aSession) {
+    public void onCurrentSessionChange(SessionAPI aOldSession, SessionAPI aSession) {
         Log.d(LOGTAG, "onCurrentSessionChange: " + this.hashCode());
 
-        mWidgetManager.setIsServoSession(isInstanceOfServoSession(aSession));
         Log.d(LOGTAG, "surfaceChanged: " + aSession.hashCode());
         callSurfaceChanged();
         aSession.getTextInput().setView(this);
@@ -1225,7 +1155,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     @Override
     public InputConnection onCreateInputConnection(final EditorInfo outAttrs) {
         Log.d(LOGTAG, "BrowserWidget onCreateInputConnection");
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         if (session == null || mView != null) {
             return null;
         }
@@ -1243,7 +1173,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (super.onKeyPreIme(aKeyCode, aEvent)) {
             return true;
         }
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         return (session != null) && session.getTextInput().onKeyPreIme(aKeyCode, aEvent);
     }
 
@@ -1252,7 +1182,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (super.onKeyUp(aKeyCode, aEvent)) {
             return true;
         }
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         return (session != null) && session.getTextInput().onKeyUp(aKeyCode, aEvent);
     }
 
@@ -1261,7 +1191,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (super.onKeyDown(aKeyCode, aEvent)) {
             return true;
         }
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         return (session != null) && session.getTextInput().onKeyDown(aKeyCode, aEvent);
     }
 
@@ -1270,7 +1200,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (super.onKeyLongPress(aKeyCode, aEvent)) {
             return true;
         }
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         return (session != null) && session.getTextInput().onKeyLongPress(aKeyCode, aEvent);
     }
 
@@ -1279,7 +1209,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (super.onKeyMultiple(aKeyCode, repeatCount, aEvent)) {
             return true;
         }
-        GeckoSession session = mSession.getGeckoSession();
+        SessionAPI session = mSession.getSessionAPI();
         return (session != null) && session.getTextInput().onKeyMultiple(aKeyCode, repeatCount, aEvent);
     }
     
@@ -1291,8 +1221,11 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
     @Override
     public boolean onTouchEvent(MotionEvent aEvent) {
-        GeckoSession session = mSession.getGeckoSession();
-        return (session != null) && session.getPanZoomController().onTouchEvent(aEvent) == PanZoomController.INPUT_RESULT_HANDLED;
+        SessionAPI session = mSession.getSessionAPI();
+        if (session != null) {
+            return session.onTouchEvent(aEvent);
+        }
+        return false;
     }
 
     @Override
@@ -1300,8 +1233,11 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (mView != null) {
             return super.onGenericMotionEvent(aEvent);
         } else {
-            GeckoSession session = mSession.getGeckoSession();
-            return (session != null) && session.getPanZoomController().onMotionEvent(aEvent) == PanZoomController.INPUT_RESULT_HANDLED;
+            SessionAPI session = mSession.getSessionAPI();
+            if (session != null) {
+                return session.onMotionEvent(aEvent);
+            }
+            return false;
         }
     }
 
@@ -1632,7 +1568,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             mWidgetManager.requestPermission(
                     downloadJob.getUri(),
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    new GeckoSession.PermissionDelegate.Callback() {
+                    new PermissionDelegate.Callback() {
                         @Override
                         public void grant() {
                             download.run();
@@ -1658,21 +1594,21 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             mSelectionMenu != null && mSelectionMenu.isVisible());
     }
 
-    // GeckoSession.ContentDelegate
+    // SessionAPI.ContentDelegate
 
     @Override
-    public void onFullScreen(@NonNull GeckoSession session, boolean aFullScreen) {
+    public void onFullScreen(@NonNull SessionAPI session, boolean aFullScreen) {
         setIsFullScreen(aFullScreen);
     }
 
     @Override
-    public void onCloseRequest(@NonNull GeckoSession geckoSession) {
-        Session session = SessionStore.get().getSession(geckoSession);
+    public void onCloseRequest(@NonNull SessionAPI aSessiom) {
+        Session session = SessionStore.get().getSession(aSessiom);
         mWidgetManager.getWindows().onTabsClose(Collections.singletonList(session));
     }
 
     @Override
-    public void onContextMenu(GeckoSession session, int screenX, int screenY, ContextElement element) {
+    public void onContextMenu(SessionAPI session, int screenX, int screenY, ContextElement element) {
         hideContextMenus();
 
         // We don't show the menu for blobs
@@ -1695,7 +1631,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onFirstComposite(@NonNull GeckoSession session) {
+    public void onFirstComposite(@NonNull SessionAPI session) {
         if (!mAfterFirstPaint) {
             return;
         }
@@ -1706,7 +1642,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onFirstContentfulPaint(@NonNull GeckoSession session) {
+    public void onFirstContentfulPaint(@NonNull SessionAPI session) {
         if (mAfterFirstPaint) {
             return;
         }
@@ -1715,7 +1651,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             mFirstDrawCallback = null;
             mAfterFirstPaint = true;
             // view queue calls need to be delayed to avoid a deadlock
-            // caused by GeckoSession.syncResumeResizeCompositor()
+            // caused by SessionAPI.syncResumeResizeCompositor()
             // See: https://github.com/MozillaReality/FirefoxReality/issues/2889
             mUIThreadExecutor.execute(() -> {
                 mSetViewQueuedCalls.forEach(Runnable::run);
@@ -1726,7 +1662,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onExternalResponse(@NonNull GeckoSession geckoSession, @NonNull GeckoSession.WebResponseInfo webResponseInfo) {
+    public void onExternalResponse(@NonNull SessionAPI geckoSession, @NonNull WebResponseInfo webResponseInfo) {
         // We don't want to trigger downloads of already downloaded files that we can't open
         // so we let the system handle it.
         if (!UrlUtils.isFileUri(webResponseInfo.uri)) {
@@ -1821,17 +1757,17 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         }
     };
 
-    // GeckoSession.NavigationDelegate
+    // SessionAPI.NavigationDelegate
 
 
     @Override
-    public void onPageStart(@NonNull GeckoSession geckoSession, @NonNull String aUri) {
+    public void onPageStart(@NonNull SessionAPI geckoSession, @NonNull String aUri) {
         mCaptureOnPageStop = true;
         mViewModel.setIsLoading(true);
     }
 
     @Override
-    public void onPageStop(@NonNull GeckoSession aSession, boolean b) {
+    public void onPageStop(@NonNull SessionAPI aSession, boolean b) {
         if (mCaptureOnPageStop || !mSession.hasCapturedBitmap()) {
             mCaptureOnPageStop = false;
             captureImage();
@@ -1845,7 +1781,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onLocationChange(@NonNull GeckoSession session, @Nullable String url) {
+    public void onLocationChange(@NonNull SessionAPI session, @Nullable String url) {
         if (mPromptDelegate != null &&
                 mViewModel.getUrl().getValue() != null &&
                 UrlUtils.getHost(url) != null &&
@@ -1870,18 +1806,18 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onCanGoBack(@NonNull GeckoSession geckoSession, boolean canGoBack) {
+    public void onCanGoBack(@NonNull SessionAPI geckoSession, boolean canGoBack) {
         mViewModel.setCanGoBack(canGoBack);
     }
 
     @Override
-    public void onCanGoForward(@NonNull GeckoSession geckoSession, boolean canGoForward) {
+    public void onCanGoForward(@NonNull SessionAPI geckoSession, boolean canGoForward) {
         mViewModel.setCanGoForward(canGoForward);
     }
 
     @Override
-    public @Nullable GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession aSession, @NonNull LoadRequest aRequest) {
-        final GeckoResult<AllowOrDeny> result = new GeckoResult<>();
+    public @Nullable ResultAPI<AllowOrDeny> onLoadRequest(SessionAPI aSession, @NonNull LoadRequest aRequest) {
+        final ResultAPI<AllowOrDeny> result = new ResultAPI<>();
 
         Uri uri = Uri.parse(aRequest.uri);
         if (UrlUtils.isAboutPage(uri.toString())) {
@@ -1910,7 +1846,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             mWidgetManager.requestPermission(
                     aRequest.uri,
                     android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                    new GeckoSession.PermissionDelegate.Callback() {
+                    new PermissionDelegate.Callback() {
                         @Override
                         public void grant() {
                             result.complete(AllowOrDeny.ALLOW);
@@ -1928,10 +1864,10 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         return result;
     }
 
-    // GeckoSession.HistoryDelegate
+    // SessionAPI.HistoryDelegate
 
     @Override
-    public void onHistoryStateChange(@NonNull GeckoSession geckoSession, @NonNull HistoryList historyList) {
+    public void onHistoryStateChange(@NonNull SessionAPI geckoSession, @NonNull HistoryList historyList) {
         if (!mSession.isPrivateMode()) {
             for (HistoryItem item : historyList) {
                 SessionStore.get().getHistoryStore().recordObservation(item.getUri(), new PageObservation(item.getTitle()));
@@ -1941,16 +1877,16 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
     @Nullable
     @Override
-    public GeckoResult<Boolean> onVisited(@NonNull GeckoSession geckoSession, @NonNull String url, @Nullable String lastVisitedURL, int flags) {
+    public ResultAPI<Boolean> onVisited(@NonNull SessionAPI geckoSession, @NonNull String url, @Nullable String lastVisitedURL, int flags) {
         if (mSession.isPrivateMode() ||
                 (flags & VISIT_TOP_LEVEL) == 0 ||
                 (flags & VISIT_UNRECOVERABLE_ERROR) != 0) {
-            return GeckoResult.fromValue(false);
+            return ResultAPI.fromValue(false);
         }
 
         // Check if we want this type of url.
         if (!shouldStoreUri(url)) {
-            return GeckoResult.fromValue(false);
+            return ResultAPI.fromValue(false);
         }
 
         boolean isReload = lastVisitedURL != null && lastVisitedURL.equals(url);
@@ -1981,10 +1917,10 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
             }
         }
         RedirectSource redirectSource;
-        if ((flags & GeckoSession.HistoryDelegate.VISIT_REDIRECT_SOURCE_PERMANENT) != 0) {
+        if ((flags & HistoryDelegate.VISIT_REDIRECT_SOURCE_PERMANENT) != 0) {
             redirectSource = RedirectSource.PERMANENT;
 
-        } else if ((flags & GeckoSession.HistoryDelegate.VISIT_REDIRECT_SOURCE) != 0) {
+        } else if ((flags & HistoryDelegate.VISIT_REDIRECT_SOURCE) != 0) {
             redirectSource = RedirectSource.TEMPORARY;
 
         } else {
@@ -1994,7 +1930,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         SessionStore.get().getHistoryStore().recordVisit(url, new PageVisit(visitType, redirectSource));
         SessionStore.get().getHistoryStore().recordObservation(url, new PageObservation(url));
 
-        return GeckoResult.fromValue(true);
+        return ResultAPI.fromValue(true);
     }
 
     /**
@@ -2030,12 +1966,12 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
     @UiThread
     @Nullable
-    public GeckoResult<boolean[]> getVisited(@NonNull GeckoSession geckoSession, @NonNull String[] urls) {
+    public ResultAPI<boolean[]> getVisited(@NonNull SessionAPI geckoSession, @NonNull String[] urls) {
         if (mSession.isPrivateMode()) {
-            return GeckoResult.fromValue(new boolean[]{});
+            return ResultAPI.fromValue(new boolean[]{});
         }
 
-        GeckoResult<boolean[]> result = new GeckoResult<>();
+        ResultAPI<boolean[]> result = new ResultAPI<>();
 
         SessionStore.get().getHistoryStore().getVisited(Arrays.asList(urls)).thenAcceptAsync(list -> {
             final boolean[] primitives = new boolean[list.size()];
@@ -2054,18 +1990,18 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         return result;
     }
 
-    // GeckoSession.ProgressDelegate
+    // SessionAPI.ProgressDelegate
 
     @Override
-    public void onSecurityChange(GeckoSession geckoSession, SecurityInformation securityInformation) {
+    public void onSecurityChange(SessionAPI geckoSession, SecurityInformation securityInformation) {
         mViewModel.setIsInsecure(!securityInformation.isSecure);
     }
 
-    // GeckoSession.SelectionActionDelegate
+    // SessionAPI.SelectionActionDelegate
 
     @Override
-    public void onShowActionRequest(@NonNull GeckoSession aSession, @NonNull Selection aSelection) {
-        if (aSelection.availableActions.size() == 1 && (aSelection.availableActions.contains(GeckoSession.SelectionActionDelegate.ACTION_HIDE))) {
+    public void onShowActionRequest(@NonNull SessionAPI aSession, @NonNull Selection aSelection) {
+        if (aSelection.availableActions.size() == 1 && (aSelection.availableActions.contains(SelectionActionDelegate.ACTION_HIDE))) {
             // See: https://github.com/MozillaReality/FirefoxReality/issues/2214
             aSelection.hide();
             return;
@@ -2097,22 +2033,22 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
                 if (aSelection.isActionAvailable(action)) {
                     aSelection.execute(action);
 
-                } else if (aSelection.isActionAvailable(GeckoSession.SelectionActionDelegate.ACTION_UNSELECT)) {
+                } else if (aSelection.isActionAvailable(SelectionActionDelegate.ACTION_UNSELECT)) {
                     aSelection.unselect();
                 }
 
-                if (GeckoSession.SelectionActionDelegate.ACTION_COPY.equals(action) &&
-                        aSelection.isActionAvailable(GeckoSession.SelectionActionDelegate.ACTION_UNSELECT)) {
+                if (SelectionActionDelegate.ACTION_COPY.equals(action) &&
+                        aSelection.isActionAvailable(SelectionActionDelegate.ACTION_UNSELECT)) {
                     // Don't keep the text selected after it's copied.
-                    aSelection.execute(GeckoSession.SelectionActionDelegate.ACTION_UNSELECT);
+                    aSelection.execute(SelectionActionDelegate.ACTION_UNSELECT);
                 }
             }
 
             @Override
             public void onDismiss() {
-                if (aSelection.isActionAvailable(GeckoSession.SelectionActionDelegate.ACTION_UNSELECT)) {
+                if (aSelection.isActionAvailable(SelectionActionDelegate.ACTION_UNSELECT)) {
                     aSelection.unselect();
-                } else if (aSelection.isActionAvailable(GeckoSession.SelectionActionDelegate.ACTION_COLLAPSE_TO_END)) {
+                } else if (aSelection.isActionAvailable(SelectionActionDelegate.ACTION_COLLAPSE_TO_END)) {
                     aSelection.collapseToEnd() ;
                 }
 
@@ -2123,14 +2059,14 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     @Override
-    public void onHideAction(@NonNull GeckoSession aSession, int aHideReason) {
+    public void onHideAction(@NonNull SessionAPI aSession, int aHideReason) {
         hideContextMenus();
     }
 
     // WebXRStateChangedListener
 
     @Override
-    public void onWebXRStateChanged(Session aSession, @SessionState.WebXRState int aWebXRState) {
+    public void onWebXRStateChanged(SessionAPI aSession, @SessionState.WebXRState int aWebXRState) {
         mViewModel.setIsWebXRBlocked(aWebXRState == SessionState.WEBXR_BLOCKED);
         mViewModel.setIsWebXRUsed(aWebXRState != SessionState.WEBXR_UNUSED);
     }
@@ -2138,7 +2074,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     // PopUpStateChangedListener
 
     @Override
-    public void onPopUpStateChanged(Session aSession, @SessionState.PopupState int aPopUpState) {
+    public void onPopUpStateChanged(SessionAPI aSession, @SessionState.PopupState int aPopUpState) {
         mViewModel.setIsPopUpBlocked(aPopUpState == SessionState.POPUP_BLOCKED);
         mViewModel.setIsPopUpAvailable(aPopUpState != SessionState.POPUP_UNUSED);
     }
@@ -2146,7 +2082,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     // DrmStateChangedListener
 
     @Override
-    public void onDrmStateChanged(Session aSession, @SessionState.DrmState int aDrmState) {
+    public void onDrmStateChanged(SessionAPI aSession, @SessionState.DrmState int aDrmState) {
         mViewModel.setIsDrmUsed(aDrmState == SessionState.DRM_BLOCKED ||
                 aDrmState == SessionState.DRM_ALLOWED);
     }

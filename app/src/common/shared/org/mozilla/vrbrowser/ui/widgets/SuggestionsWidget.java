@@ -25,9 +25,9 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.audio.AudioEngine;
+import org.mozilla.vrbrowser.browser.api.SelectionActionDelegate;
 import org.mozilla.vrbrowser.ui.views.CustomListView;
 import org.mozilla.vrbrowser.ui.widgets.dialogs.SelectionActionWidget;
 import org.mozilla.vrbrowser.utils.ViewUtils;
@@ -367,7 +367,7 @@ public class SuggestionsWidget extends UIWidget implements WidgetManagerDelegate
         if (mSelectionMenu == null) {
             mSelectionMenu = new SelectionActionWidget(getContext());
             mSelectionMenu.mWidgetPlacement.parentHandle = getHandle();
-            mSelectionMenu.setActions(Collections.singleton(GeckoSession.SelectionActionDelegate.ACTION_COPY));
+            mSelectionMenu.setActions(Collections.singleton(SelectionActionDelegate.ACTION_COPY));
         }
 
         Rect offsetViewBounds = new Rect();

@@ -2,7 +2,7 @@ package org.mozilla.vrbrowser.browser;
 
 import androidx.annotation.NonNull;
 
-import org.mozilla.geckoview.MediaElement;
+import org.mozilla.vrbrowser.browser.api.MediaElement;
 import org.mozilla.vrbrowser.utils.SystemUtils;
 
 import java.util.concurrent.CopyOnWriteArrayList;

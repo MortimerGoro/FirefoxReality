@@ -1,25 +1,24 @@
 package org.mozilla.vrbrowser.browser.content;
 
-import org.mozilla.geckoview.ContentBlocking;
-import org.mozilla.geckoview.ContentBlocking.AntiTracking;
+import org.mozilla.vrbrowser.browser.api.ContentBlocking;
 
 public class TrackingProtectionPolicy {
 
     private static final int RECOMMENDED =
-            AntiTracking.AD |
-            AntiTracking.ANALYTIC |
-            AntiTracking.SOCIAL |
-            AntiTracking.TEST |
-            AntiTracking.STP |
-            AntiTracking.CRYPTOMINING;
+            ContentBlocking.AntiTracking.AD |
+            ContentBlocking.AntiTracking.ANALYTIC |
+            ContentBlocking.AntiTracking.SOCIAL |
+            ContentBlocking.AntiTracking.TEST |
+            ContentBlocking.AntiTracking.STP |
+            ContentBlocking.AntiTracking.CRYPTOMINING;
     private static final int STRICT =
-            RECOMMENDED | AntiTracking.FINGERPRINTING;
+            RECOMMENDED | ContentBlocking.AntiTracking.FINGERPRINTING;
 
     private int trackingPolicy;
     private int cookiePolicy;
 
     private TrackingProtectionPolicy() {
-        trackingPolicy = AntiTracking.NONE;
+        trackingPolicy = ContentBlocking.AntiTracking.NONE;
     }
 
     /**
@@ -48,7 +47,7 @@ public class TrackingProtectionPolicy {
 
     static TrackingProtectionPolicy none() {
         TrackingProtectionPolicy policy = new TrackingProtectionPolicy();
-        policy.trackingPolicy = AntiTracking.NONE;
+        policy.trackingPolicy = ContentBlocking.AntiTracking.NONE;
         policy.cookiePolicy = ContentBlocking.CookieBehavior.ACCEPT_ALL;
         return policy;
     }

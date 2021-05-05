@@ -17,11 +17,10 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import org.mozilla.geckoview.GeckoSession.PromptDelegate.ChoicePrompt.Choice;
-import org.mozilla.geckoview.GeckoSession.PromptDelegate.ChoicePrompt.Type;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.audio.AudioEngine;
 import org.mozilla.vrbrowser.ui.widgets.WidgetPlacement;
+import org.mozilla.vrbrowser.browser.api.PromptDelegate.ChoicePrompt.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;

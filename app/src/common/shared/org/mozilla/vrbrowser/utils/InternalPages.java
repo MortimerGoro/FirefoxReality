@@ -6,8 +6,7 @@ import android.util.Base64;
 import androidx.annotation.Nullable;
 
 import org.mozilla.vrbrowser.R;
-
-import org.mozilla.geckoview.WebRequestError;
+import org.mozilla.vrbrowser.browser.api.WebRequestError;
 
 import java.io.BufferedReader;
 import java.io.IOException;

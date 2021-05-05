@@ -14,8 +14,8 @@ import androidx.annotation.NonNull;
 import androidx.databinding.DataBindingUtil;
 import androidx.lifecycle.Observer;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.databinding.OptionsExceptionsBinding;
 import org.mozilla.vrbrowser.db.SitePermission;
@@ -177,7 +177,7 @@ class SitePermissionsOptionsView extends SettingsView {
         for (WindowWidget window: mWidgetManager.getWindows().getCurrentWindows()) {
             Session session = window.getSession();
             if (aHost.equalsIgnoreCase(UrlUtils.getHost(session.getCurrentUri()))) {
-                session.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE);
+                session.reload(SessionAPI.LOAD_FLAGS_BYPASS_CACHE);
             }
         }
     }

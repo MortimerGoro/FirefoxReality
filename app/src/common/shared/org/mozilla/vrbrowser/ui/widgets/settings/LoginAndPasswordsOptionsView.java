@@ -84,7 +84,7 @@ class LoginAndPasswordsOptionsView extends SettingsView {
 
         if (doApply) {
             SettingsStore.getInstance(getContext()).setAutoFillEnabled(value);
-            EngineProvider.INSTANCE.getOrCreateRuntime(getContext()).getSettings().setLoginAutofillEnabled(value);
+            //EngineProvider.INSTANCE.getOrCreateRuntime(getContext()).getSettings().setLoginAutofillEnabled(value);
         }
     }
 

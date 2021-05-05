@@ -43,9 +43,6 @@ import androidx.lifecycle.ViewModelStore;
 import androidx.lifecycle.ViewModelStoreOwner;
 
 import org.json.JSONObject;
-import org.mozilla.geckoview.GeckoRuntime;
-import org.mozilla.geckoview.GeckoSession;
-import org.mozilla.geckoview.GeckoVRManager;
 import org.mozilla.vrbrowser.audio.AudioEngine;
 import org.mozilla.vrbrowser.browser.Accounts;
 import org.mozilla.vrbrowser.browser.PermissionDelegate;
@@ -53,8 +50,6 @@ import org.mozilla.vrbrowser.browser.SettingsStore;
 import org.mozilla.vrbrowser.browser.engine.EngineProvider;
 import org.mozilla.vrbrowser.browser.engine.Session;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
-import org.mozilla.vrbrowser.crashreporting.CrashReporterService;
-import org.mozilla.vrbrowser.crashreporting.GlobalExceptionHandler;
 import org.mozilla.vrbrowser.geolocation.GeolocationWrapper;
 import org.mozilla.vrbrowser.input.MotionEventGenerator;
 import org.mozilla.vrbrowser.search.SearchEngineWrapper;
@@ -83,14 +78,12 @@ import org.mozilla.vrbrowser.utils.BitmapCache;
 import org.mozilla.vrbrowser.utils.ConnectivityReceiver;
 import org.mozilla.vrbrowser.utils.DeviceType;
 import org.mozilla.vrbrowser.utils.LocaleUtils;
-import org.mozilla.vrbrowser.utils.ServoUtils;
 import org.mozilla.vrbrowser.utils.StringUtils;
 import org.mozilla.vrbrowser.utils.SystemUtils;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
@@ -100,16 +93,6 @@ import java.util.function.Consumer;
 import static org.mozilla.vrbrowser.ui.widgets.UIWidget.REMOVE_WIDGET;
 
 public class VRBrowserActivity extends PlatformActivity implements WidgetManagerDelegate, ComponentCallbacks2, LifecycleOwner, ViewModelStoreOwner {
-
-    private BroadcastReceiver mCrashReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if((intent.getAction() != null) && intent.getAction().equals(CrashReporterService.CRASH_ACTION)) {
-                Intent crashIntent = intent.getParcelableExtra(CrashReporterService.DATA_TAG);
-                handleContentCrashIntent(crashIntent);
-            }
-        }
-    };
 
     private final LifecycleRegistry mLifeCycle;
 
@@ -228,19 +211,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     protected void onCreate(Bundle savedInstanceState) {
         SettingsStore.getInstance(getBaseContext()).setPid(Process.myPid());
         ((VRBrowserApplication)getApplication()).onActivityCreate(this);
-        // Fix for infinite restart on startup crashes.
-        long count = SettingsStore.getInstance(getBaseContext()).getCrashRestartCount();
-        boolean cancelRestart = count > CrashReporterService.MAX_RESTART_COUNT;
-        if (cancelRestart) {
-            super.onCreate(savedInstanceState);
-            Log.e(LOGTAG, "Cancel Restart");
-            finish();
-            return;
-        }
-        SettingsStore.getInstance(getBaseContext()).incrementCrashRestartCount();
-        mHandler.postDelayed(() -> SettingsStore.getInstance(getBaseContext()).resetCrashRestartCount(), RESET_CRASH_COUNT_DELAY);
-        // Set a global exception handler as soon as possible
-        GlobalExceptionHandler.register(this.getApplicationContext());
 
         if (DeviceType.isOculusBuild()) {
             workaroundGeckoSigAction();
@@ -249,12 +219,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
         BitmapCache.getInstance(this).onCreate();
 
-        EngineProvider.INSTANCE.getOrCreateRuntime(this).appendAppNotesToCrashReport("Firefox Reality " + BuildConfig.VERSION_NAME + "-" + BuildConfig.VERSION_CODE + "-" + BuildConfig.FLAVOR + "-" + BuildConfig.BUILD_TYPE + " (" + BuildConfig.GIT_HASH + ")");
-
-        // Create broadcast receiver for getting crash messages from crash process
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(CrashReporterService.CRASH_ACTION);
-        registerReceiver(mCrashReceiver, intentFilter, BuildConfig.APPLICATION_ID + "." + getString(R.string.app_permission_name), null);
+        EngineProvider.INSTANCE.getOrCreateRuntime(this);
 
         mLastGesture = NoGesture;
         super.onCreate(savedInstanceState);
@@ -270,6 +235,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
         mWidgets = new ConcurrentHashMap<>();
         mWidgetContainer = new FrameLayout(this);
+        EngineProvider.INSTANCE.getOrCreateRuntime(this).setWidgetContainer(mWidgetContainer);
 
         mPermissionDelegate = new PermissionDelegate(this, this);
 
@@ -304,7 +270,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         GeolocationWrapper.INSTANCE.update(this);
 
         mPoorPerformanceAllowList = new HashSet<>();
-        checkForCrash();
 
         mLifeCycle.setCurrentState(Lifecycle.State.CREATED);
     }
@@ -487,8 +452,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     protected void onDestroy() {
         ((VRBrowserApplication)getApplication()).onActivityDestroy();
         SettingsStore.getInstance(getBaseContext()).setPid(0);
-        // Unregister the crash service broadcast receiver
-        unregisterReceiver(mCrashReceiver);
         mSearchEngineWrapper.unregisterForUpdates();
 
         for (Widget widget: mWidgets.values()) {
@@ -529,12 +492,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         Log.d(LOGTAG,"VRBrowserActivity onNewIntent");
         super.onNewIntent(intent);
         setIntent(intent);
-
-        if (GeckoRuntime.ACTION_CRASHED.equals(intent.getAction())) {
-            Log.e(LOGTAG, "Restarted after a crash");
-        } else {
-            loadFromIntent(intent);
-        }
+        loadFromIntent(intent);
     }
 
     @Override
@@ -553,10 +511,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
 
     void loadFromIntent(final Intent intent) {
-        if (GeckoRuntime.ACTION_CRASHED.equals(intent.getAction())) {
-            Log.e(LOGTAG,"Loading from crash Intent");
-        }
-
         // FIXME https://github.com/MozillaReality/FirefoxReality/issues/3066
         if (DeviceType.isOculusBuild()) {
             Bundle bundle = intent.getExtras();
@@ -646,44 +600,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     private ConnectivityReceiver.Delegate mConnectivityDelegate = connected -> {
         mConnectionAvailable = connected;
     };
-
-    private void checkForCrash() {
-        final ArrayList<String> files = CrashReporterService.findCrashFiles(getBaseContext());
-        if (files.isEmpty()) {
-            Log.d(LOGTAG, "No crash files found.");
-            return;
-        }
-        boolean isCrashReportingEnabled = SettingsStore.getInstance(this).isCrashReportingEnabled();
-        if (isCrashReportingEnabled) {
-            SystemUtils.postCrashFiles(this, files);
-
-        } else {
-            if (mCrashDialog == null) {
-                mCrashDialog = new CrashDialogWidget(this, files);
-            }
-            mCrashDialog.show(UIWidget.REQUEST_FOCUS);
-        }
-    }
-
-    private void handleContentCrashIntent(@NonNull final Intent intent) {
-        Log.e(LOGTAG, "Got content crashed intent");
-        final String dumpFile = intent.getStringExtra(GeckoRuntime.EXTRA_MINIDUMP_PATH);
-        final String extraFile = intent.getStringExtra(GeckoRuntime.EXTRA_EXTRAS_PATH);
-        Log.d(LOGTAG, "Dump File: " + dumpFile);
-        Log.d(LOGTAG, "Extras File: " + extraFile);
-        Log.d(LOGTAG, "Fatal: " + intent.getBooleanExtra(GeckoRuntime.EXTRA_CRASH_FATAL, false));
-
-        boolean isCrashReportingEnabled = SettingsStore.getInstance(this).isCrashReportingEnabled();
-        if (isCrashReportingEnabled) {
-            SystemUtils.postCrashFiles(this, dumpFile, extraFile);
-
-        } else {
-            if (mCrashDialog == null) {
-                mCrashDialog = new CrashDialogWidget(this, dumpFile, extraFile);
-            }
-            mCrashDialog.show(UIWidget.REQUEST_FOCUS);
-        }
-    }
 
     @Override
     public void onTrimMemory(int level) {
@@ -978,8 +894,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     @Keep
     @SuppressWarnings("unused")
     void registerExternalContext(long aContext) {
-        ServoUtils.setExternalContext(aContext);
-        GeckoVRManager.setExternalContext(aContext);
+        // GeckoVRManager.setExternalContext(aContext);
     }
 
     final Object mCompositorLock = new Object();
@@ -1226,7 +1141,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     @Keep
     @SuppressWarnings("unused")
     private void appendAppNotesToCrashReport(String aNotes) {
-        runOnUiThread(() -> EngineProvider.INSTANCE.getOrCreateRuntime(VRBrowserActivity.this).appendAppNotesToCrashReport(aNotes));
     }
 
     @Keep
@@ -1501,11 +1415,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
 
     @Override
-    public void setIsServoSession(boolean aIsServo) {
-      queueRunnable(() -> setIsServo(aIsServo));
-    }
-
-    @Override
     public void pushWorldBrightness(Object aKey, float aBrightness) {
         if (mCurrentBrightness.second != aBrightness) {
             queueRunnable(() -> setWorldBrightnessNative(aBrightness));
@@ -1584,12 +1493,12 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
 
     @Override
-    public void requestPermission(String uri, @NonNull String permission, GeckoSession.PermissionDelegate.Callback aCallback) {
+    public void requestPermission(String uri, @NonNull String permission, PermissionDelegate.Callback aCallback) {
         Session session = SessionStore.get().getActiveSession();
         if (uri != null && !uri.isEmpty()) {
-            mPermissionDelegate.onAppPermissionRequest(session.getGeckoSession(), uri, permission, aCallback);
+            mPermissionDelegate.onAppPermissionRequest(session.getSessionAPI(), uri, permission, aCallback);
         } else {
-            mPermissionDelegate.onAndroidPermissionsRequest(session.getGeckoSession(), new String[]{permission}, aCallback);
+            mPermissionDelegate.onAndroidPermissionsRequest(session.getSessionAPI(), new String[]{permission}, aCallback);
         }
     }
 

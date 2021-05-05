@@ -13,20 +13,19 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.vrbrowser.R;
+import org.mozilla.vrbrowser.browser.api.ContentDelegate;
+import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.engine.Session;
-import org.mozilla.vrbrowser.browser.engine.SessionStore;
 import org.mozilla.vrbrowser.ui.widgets.WidgetPlacement;
 import org.mozilla.vrbrowser.utils.AnimationHelper;
 import org.mozilla.vrbrowser.utils.BitmapCache;
 import org.mozilla.vrbrowser.utils.SystemUtils;
 import org.mozilla.vrbrowser.utils.UrlUtils;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-public class TabView extends RelativeLayout implements GeckoSession.ContentDelegate, Session.BitmapChangedListener {
+public class TabView extends RelativeLayout implements ContentDelegate, Session.BitmapChangedListener {
 
     private static final String LOGTAG = SystemUtils.createLogtag(TabView.class);
 
@@ -289,22 +288,22 @@ public class TabView extends RelativeLayout implements GeckoSession.ContentDeleg
     }
 
     @Override
-    public void onTitleChange(@NonNull GeckoSession session, @Nullable String title) {
+    public void onTitleChange(@NonNull SessionAPI session, @Nullable String title) {
         if (!mShowAddTab) {
             mTitle.setText(title);
         }
     }
 
     @Override
-    public void onCloseRequest(@NonNull GeckoSession geckoSession) {
-        if (mSession.getGeckoSession() == geckoSession) {
+    public void onCloseRequest(@NonNull SessionAPI geckoSession) {
+        if (mSession.getSessionAPI() == geckoSession) {
             mDelegate.onClose(this);
         }
     }
 
     @Override
-    public void onBitmapChanged(Session aSession, Bitmap aBitmap) {
-        if (aSession != mSession) {
+    public void onBitmapChanged(SessionAPI aSession, Bitmap aBitmap) {
+        if (aSession != mSession.getSessionAPI()) {
             return;
         }
         if (aBitmap != null) {

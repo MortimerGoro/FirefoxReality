@@ -6,7 +6,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.appcompat.content.res.AppCompatResources
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,21 +19,13 @@ import mozilla.components.feature.addons.AddonManager
 import mozilla.components.feature.addons.amo.AddonCollectionProvider
 import mozilla.components.feature.addons.update.AddonUpdater
 import mozilla.components.feature.addons.update.DefaultAddonUpdater
-import mozilla.components.feature.addons.update.GlobalAddonDependencyProvider
 import mozilla.components.support.base.log.logger.Logger
-import mozilla.components.support.webextensions.WebExtensionSupport
-import org.mozilla.geckoview.GeckoSession
 import org.mozilla.vrbrowser.BuildConfig
 import org.mozilla.vrbrowser.R
-import org.mozilla.vrbrowser.addons.views.AddonsListView
 import org.mozilla.vrbrowser.browser.adapter.ComponentsAdapter
-import org.mozilla.vrbrowser.browser.components.GeckoEngineSession
-import org.mozilla.vrbrowser.browser.engine.EngineProvider
-import org.mozilla.vrbrowser.browser.engine.Session
 import org.mozilla.vrbrowser.browser.engine.SessionStore
-import org.mozilla.vrbrowser.crashreporting.GlobalExceptionHandler
+import org.mozilla.vrbrowser.browser.engine.WPEFetchClient
 import org.mozilla.vrbrowser.ui.widgets.WidgetManagerDelegate
-import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -53,14 +44,14 @@ class Addons(val context: Context, private val sessionStore: SessionStore) {
         if (BuildConfig.AMO_COLLECTION.isNotEmpty()) {
             AddonCollectionProvider(
                     context,
-                    EngineProvider.getDefaultClient(context),
+                    WPEFetchClient(),
                     collectionName = BuildConfig.AMO_COLLECTION,
                     maxCacheAgeInMinutes = DAY_IN_MINUTES
             )
         } else {
             AddonCollectionProvider(
                     context,
-                    EngineProvider.getDefaultClient(context),
+                    WPEFetchClient(),
                     maxCacheAgeInMinutes = DAY_IN_MINUTES)
         }
     }
@@ -83,46 +74,7 @@ class Addons(val context: Context, private val sessionStore: SessionStore) {
     }
 
     private fun initializeWebExtensionSupport() {
-        try {
-            GlobalAddonDependencyProvider.initialize(
-                    addonManager,
-                    addonUpdater,
-                    onCrash = { exception ->
-                        GlobalExceptionHandler.mInstance.mCrashHandler.uncaughtException(Thread.currentThread(), exception)
-                    }
-            )
-            WebExtensionSupport.initialize(
-                    sessionStore.webExtensionRuntime,
-                    ComponentsAdapter.get().store,
-                    false,
-                    onNewTabOverride = {
-                        _, engineSession, url ->
-                        val session = sessionStore.getSession((engineSession as GeckoEngineSession).geckoSession)
-                        session?.loadUri(url, GeckoSession.LOAD_FLAGS_REPLACE_HISTORY)
-                        session!!.id
-                    },
-                    onCloseTabOverride = {
-                        _, sessionId ->
-                        val session: Session? = sessionStore.getSession(sessionId)
-                        if (session != null) {
-                            delegate.windows.closeTab(session)
-                        }
-                    },
-                    onSelectTabOverride = {
-                        _, sessionId ->
-                        val session: Session? = sessionStore.getSession(sessionId)
-                        if (session != null) {
-                            delegate.windows.selectTab(session)
-                        }
-                    },
-                    onExtensionsLoaded = { extensions ->
-                        addonUpdater.registerForFutureUpdates(extensions)
-                    },
-                    onUpdatePermissionRequest = addonUpdater::onUpdatePermissionRequest
-            )
-        } catch (e: UnsupportedOperationException) {
-            Logger.error("Failed to initialize web extension support", e)
-        }
+        // TODO
     }
 
     fun addListener(listener: AddonsListener) {

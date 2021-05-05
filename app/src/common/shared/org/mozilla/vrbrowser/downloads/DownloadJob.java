@@ -3,8 +3,7 @@ package org.mozilla.vrbrowser.downloads;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.mozilla.geckoview.GeckoSession.ContentDelegate.ContextElement;
-import org.mozilla.geckoview.GeckoSession.WebResponseInfo;
+import org.mozilla.vrbrowser.browser.api.ContentDelegate;
 
 import java.io.File;
 import java.net.URL;
@@ -52,7 +51,7 @@ public class DownloadJob {
         return job;
     }
 
-    public static DownloadJob from(@NonNull WebResponseInfo response) {
+    public static DownloadJob from(@NonNull ContentDelegate.WebResponseInfo response) {
         DownloadJob job = new DownloadJob();
         job.mUri = response.uri;
         job.mContentType = response.contentType;
@@ -74,20 +73,20 @@ public class DownloadJob {
         return job;
     }
 
-    public static DownloadJob fromSrc(@NonNull ContextElement contextElement) {
+    public static DownloadJob fromSrc(@NonNull ContentDelegate.ContextElement contextElement) {
         DownloadJob job = new DownloadJob();
         job.mUri = contextElement.srcUri;
         switch (contextElement.type) {
-            case ContextElement.TYPE_NONE:
+            case ContentDelegate.ContextElement.TYPE_NONE:
                 job.mContentType = "";
                 break;
-            case ContextElement.TYPE_AUDIO:
+            case ContentDelegate.ContextElement.TYPE_AUDIO:
                 job.mContentType = "audio";
                 break;
-            case ContextElement.TYPE_IMAGE:
+            case ContentDelegate.ContextElement.TYPE_IMAGE:
                 job.mContentType = "image";
                 break;
-            case ContextElement.TYPE_VIDEO:
+            case ContentDelegate.ContextElement.TYPE_VIDEO:
                 job.mContentType = "video";
                 break;
         }
@@ -104,20 +103,20 @@ public class DownloadJob {
         return job;
     }
 
-    public static DownloadJob fromLink(@NonNull ContextElement contextElement) {
+    public static DownloadJob fromLink(@NonNull ContentDelegate.ContextElement contextElement) {
         DownloadJob job = new DownloadJob();
         job.mUri = contextElement.linkUri;
         switch (contextElement.type) {
-            case ContextElement.TYPE_NONE:
+            case ContentDelegate.ContextElement.TYPE_NONE:
                 job.mContentType = "";
                 break;
-            case ContextElement.TYPE_AUDIO:
+            case ContentDelegate.ContextElement.TYPE_AUDIO:
                 job.mContentType = "audio";
                 break;
-            case ContextElement.TYPE_IMAGE:
+            case ContentDelegate.ContextElement.TYPE_IMAGE:
                 job.mContentType = "image";
                 break;
-            case ContextElement.TYPE_VIDEO:
+            case ContentDelegate.ContextElement.TYPE_VIDEO:
                 job.mContentType = "video";
                 break;
         }
