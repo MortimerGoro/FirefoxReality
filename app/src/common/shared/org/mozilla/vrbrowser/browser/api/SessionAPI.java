@@ -6,6 +6,9 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.IntDef;
+
+import org.mozilla.vrbrowser.ui.widgets.WindowWidget;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
@@ -38,6 +41,8 @@ public abstract class SessionAPI {
     public abstract void purgeHistory();
     public abstract void exitFullScreen();
     public abstract void restoreState(SessionStateAPI state);
+    public abstract void attachToWindow(WindowWidget window);
+    public abstract void detachFromWindow();
 
     public abstract DisplayAPI acquireDisplay();
     public abstract void releaseDisplay(DisplayAPI display);

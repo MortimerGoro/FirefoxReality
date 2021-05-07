@@ -37,6 +37,7 @@ import org.mozilla.vrbrowser.geolocation.GeolocationData;
 import org.mozilla.vrbrowser.telemetry.GleanMetricsService;
 import org.mozilla.vrbrowser.utils.BitmapCache;
 import org.mozilla.vrbrowser.utils.InternalPages;
+import org.mozilla.vrbrowser.utils.StringUtils;
 import org.mozilla.vrbrowser.utils.SystemUtils;
 import org.mozilla.vrbrowser.utils.UrlUtils;
 
@@ -159,6 +160,13 @@ public class Session implements ContentBlocking.Delegate, NavigationDelegate,
         mRuntime = aRuntime;
         initialize();
         mState = aRestoreState;
+        if (mState.mSession == null) {
+            mState.mSession = createSessionAPI(mState.mSettings);
+            openSession();
+            if (!StringUtils.isEmpty(mState.mUri)) {
+                mState.mSession.loadUri(mState.mUri);
+            }
+        }
     }
 
     private void initialize() {

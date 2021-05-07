@@ -1,7 +1,7 @@
 include ':app'
 
 include ':wpe'
-project(':wpe').projectDir = new File('/home/mortimer/Projects/wpe/wpe')
+project(':wpe').projectDir = new File('/home/mortimer/Projects/wpe-fix/wpe')
 
 def wavebuild = new File('third_party/wavesdk/build.gradle')
 

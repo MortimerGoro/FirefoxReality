@@ -16,6 +16,7 @@ import org.mozilla.vrbrowser.browser.api.SessionSettingsAPI;
 import org.mozilla.vrbrowser.browser.api.SessionStateAPI;
 import org.mozilla.vrbrowser.browser.api.SessionTextInput;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
+import org.mozilla.vrbrowser.ui.widgets.WindowWidget;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -28,7 +29,7 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
     private SessionSettingsAPI mSettings;
     private SessionTextInput mTextInput;
     private WPEDisplay mDisplay;
-    private boolean mFirstCompositeNotified = false;
+    private WindowWidget mWindow;
 
     public WPESession(Context context) {
         mContext = context;
@@ -77,6 +78,9 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
     public void loadUri(String uri, int flags) {
         if (!isOpen()) {
             throw new RuntimeException("WPE Session is not opened");
+        }
+        if (!uri.toLowerCase().startsWith("http")) {
+            uri = "https://" + uri;
         }
         mWPEView.loadUrl(uri);
     }
@@ -138,6 +142,26 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
     }
 
     @Override
+    public void attachToWindow(WindowWidget window)
+    {
+        if (window == mWindow) {
+            return;
+        }
+        detachFromWindow();
+        mWindow = window;
+        mWindow.addView(mWPEView);
+    }
+
+    @Override
+    public void detachFromWindow()
+    {
+        if (mWindow != null) {
+            mWindow.removeView(mWPEView);
+            mWindow = null;
+        }
+    }
+
+    @Override
     public DisplayAPI acquireDisplay() {
         if (!isOpen()) {
             throw new RuntimeException("WPE Session is not opened");
@@ -145,7 +169,7 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
         if (mDisplay != null) {
             throw new RuntimeException("Display already acquired");
         }
-        mDisplay = new WPEDisplay(mWPEView);
+        mDisplay = new WPEDisplay(mWPEView, this);
         return mDisplay;
     }
 
@@ -165,7 +189,11 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
         if (!isOpen()) {
             throw new RuntimeException("WPE Session is not opened");
         }
-        return mWPEView.onTouchEvent(event);
+        com.wpe.wpe.gfx.View view = mWPEView.getView();
+        if (view != null) {
+            return view.onTouchEvent(event);
+        }
+        return false;
     }
 
     @Override
@@ -202,30 +230,36 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
         return mWPEView;
     }
 
+
+    /* package */ void notifyFirstComposite() {
+        mWPEView.postDelayed(() -> {
+            if (mContentDelegate != null) {
+                mContentDelegate.onFirstComposite(WPESession.this);
+                mContentDelegate.onFirstContentfulPaint(WPESession.this);
+            }
+        }, 0);
+    }
+
+
+
     // WPEViewClient
     @Override
     public void onPageStarted(WPEView view, String url) {
+        if (mProgressDelegate != null) {
+            mProgressDelegate.onPageStart(this, url);
+        }
         if (mNavigationDelegate != null) {
             mNavigationDelegate.onLocationChange(this, url);
             mNavigationDelegate.onCanGoBack(this, view.canGoBack());
             mNavigationDelegate.onCanGoForward(this, view.canGoForward());
         }
-        if (!mFirstCompositeNotified) {
-            mFirstCompositeNotified = true;
-            new Timer().schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    if (mContentDelegate != null) {
-                        mContentDelegate.onFirstComposite(WPESession.this);
-                        mContentDelegate.onFirstContentfulPaint(WPESession.this);
-                    }
-                }
-            }, 200);
-        }
     }
 
     @Override
     public void onPageFinished(WPEView view, String url) {
+        if (mProgressDelegate != null) {
+            mProgressDelegate.onPageStop(this, true);
+        }
         if (mNavigationDelegate != null) {
             mNavigationDelegate.onLocationChange(this, url);
             mNavigationDelegate.onCanGoBack(this, view.canGoBack());

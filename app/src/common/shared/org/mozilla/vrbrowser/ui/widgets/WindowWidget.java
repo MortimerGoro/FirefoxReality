@@ -229,6 +229,8 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         setFocusable(true);
         GleanMetricsService.openWindowEvent(mWindowId);
 
+
+        mSession.getSessionAPI().attachToWindow(this);
         if (mSession.getSessionAPI() != null) {
             onCurrentSessionChange(null, mSession.getSessionAPI());
         }
@@ -1105,6 +1107,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         Log.d(LOGTAG, "surfaceChanged: " + aSession.hashCode());
         callSurfaceChanged();
         aSession.getTextInput().setView(this);
+        aSession.attachToWindow(this);
 
         mViewModel.setIsPrivateSession(aSession.getSettings().getUsePrivateMode());
 
