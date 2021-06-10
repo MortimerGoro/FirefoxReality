@@ -119,10 +119,10 @@ struct ExternalVR::State {
   static ExternalVR::State* sState;
   pthread_mutex_t* browserMutex = nullptr;
   pthread_cond_t* browserCond = nullptr;
-  mozilla::gfx::VRBrowserState* sourceBrowserState = nullptr;
-  mozilla::gfx::VRExternalShmem data = {};
-  mozilla::gfx::VRSystemState system = {};
-  mozilla::gfx::VRBrowserState browser = {};
+  PlatformXR::VRBrowserState* sourceBrowserState = nullptr;
+  PlatformXR::VRExternalShmem data = {};
+  PlatformXR::VRSystemState system = {};
+  PlatformXR::VRBrowserState browser = {};
   // device::CapabilityFlags deviceCapabilities = 0;
   vrb::Vector eyeOffsets[device::EyeCount];
   uint64_t lastFrameId = 0;
@@ -133,27 +133,23 @@ struct ExternalVR::State {
   State() {
     pthread_mutex_init(&data.systemMutex, nullptr);
     pthread_mutex_init(&data.geckoMutex, nullptr);
-    pthread_mutex_init(&data.servoMutex, nullptr);
     pthread_cond_init(&data.systemCond, nullptr);
     pthread_cond_init(&data.geckoCond, nullptr);
-    pthread_cond_init(&data.servoCond, nullptr);
   }
 
   ~State() {
     pthread_mutex_destroy(&(data.systemMutex));
     pthread_mutex_destroy(&(data.geckoMutex));
-    pthread_mutex_destroy(&(data.servoMutex));
     pthread_cond_destroy(&(data.systemCond));
     pthread_cond_destroy(&(data.geckoCond));
-    pthread_cond_destroy(&(data.servoCond));
   }
 
   void Reset() {
-    memset(&data, 0, sizeof(mozilla::gfx::VRExternalShmem));
-    memset(&system, 0, sizeof(mozilla::gfx::VRSystemState));
-    memset(&browser, 0, sizeof(mozilla::gfx::VRBrowserState));
-    data.version = mozilla::gfx::kVRExternalVersion;
-    data.size = sizeof(mozilla::gfx::VRExternalShmem);
+    memset(&data, 0, sizeof(PlatformXR::VRExternalShmem));
+    memset(&system, 0, sizeof(PlatformXR::VRSystemState));
+    memset(&browser, 0, sizeof(PlatformXR::VRBrowserState));
+    data.version = PlatformXR::kVRExternalVersion;
+    data.size = sizeof(PlatformXR::VRExternalShmem);
     system.displayState.isConnected = true;
     system.displayState.isMounted = true;
     system.displayState.nativeFramebufferScaleFactor = 1.0f;
@@ -177,7 +173,7 @@ struct ExternalVR::State {
 
   void PullBrowserStateWhileLocked() {
     const bool wasPresenting = IsPresenting();
-    memcpy(&browser, sourceBrowserState, sizeof(mozilla::gfx::VRBrowserState));
+    memcpy(&browser, sourceBrowserState, sizeof(PlatformXR::VRBrowserState));
 
 
     if ((!wasPresenting && IsPresenting()) || browser.navigationTransitionActive) {
@@ -190,65 +186,24 @@ struct ExternalVR::State {
   }
 
   bool IsPresenting() const {
-    return browser.presentationActive || browser.navigationTransitionActive || browser.layerState[0].type == mozilla::gfx::VRLayerType::LayerType_Stereo_Immersive;
+    return browser.presentationActive || browser.navigationTransitionActive || browser.layerState[0].type == PlatformXR::VRLayerType::LayerType_Stereo_Immersive;
   }
 
   void SetSourceBrowser(VRBrowserType aBrowser) {
-    if (aBrowser == VRBrowserType::Gecko) {
-      browserCond = &data.geckoCond;
-      browserMutex = &data.geckoMutex;
-      sourceBrowserState = &data.geckoState;
-    } else {
-      browserCond = &data.servoCond;
-      browserMutex = &data.servoMutex;
-      sourceBrowserState = &data.servoState;
-    }
+    browserCond = &data.geckoCond;
+    browserMutex = &data.geckoMutex;
+    sourceBrowserState = &data.geckoState;
   }
 };
 
 ExternalVR::State * ExternalVR::State::sState = nullptr;
-
-mozilla::gfx::VRControllerType GetVRControllerTypeByDevice(device::DeviceType aType) {
-  mozilla::gfx::VRControllerType result = mozilla::gfx::VRControllerType::_empty;
-
-  switch (aType) {
-    case device::OculusGo:
-      result = mozilla::gfx::VRControllerType::OculusGo;
-      break;
-    case device::OculusQuest:
-      result = mozilla::gfx::VRControllerType::OculusTouch2;
-      break;
-    case device::ViveFocus:
-      result = mozilla::gfx::VRControllerType::HTCViveFocus;
-      break;
-    case device::ViveFocusPlus:
-      result = mozilla::gfx::VRControllerType::HTCViveFocusPlus;
-      break;
-    case device::PicoGaze:
-      result = mozilla::gfx::VRControllerType::PicoGaze;
-      break;
-    case device::PicoNeo2:
-      result = mozilla::gfx::VRControllerType::PicoNeo2;
-      break;
-    case device::PicoG2:
-      result = mozilla::gfx::VRControllerType::PicoG2;
-      break;
-    case device::UnknownType:
-    default:
-      result = mozilla::gfx::VRControllerType::_empty;
-      VRB_LOG("Unknown controller type.");
-      break;
-  }
-  return  result;
-}
 
 ExternalVRPtr
 ExternalVR::Create() {
   return std::make_shared<ExternalVR>();
 }
 
-mozilla::gfx::VRExternalShmem*
-ExternalVR::GetSharedData() {
+PlatformXR::VRExternalShmem* ExternalVR::GetSharedData() {
   return &(m.data);
 }
 
@@ -258,48 +213,48 @@ ExternalVR::SetDeviceName(const std::string& aName) {
     return;
   }
   strncpy(m.system.displayState.displayName, aName.c_str(),
-          mozilla::gfx::kVRDisplayNameMaxLen - 1);
-  m.system.displayState.displayName[mozilla::gfx::kVRDisplayNameMaxLen - 1] = '\0';
+          PlatformXR::kVRDisplayNameMaxLen - 1);
+  m.system.displayState.displayName[PlatformXR::kVRDisplayNameMaxLen - 1] = '\0';
 }
 
 void
 ExternalVR::SetCapabilityFlags(const device::CapabilityFlags aFlags) {
   uint16_t result = 0;
   if (device::Position & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_Position);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_Position);
   }
   if (device::Orientation & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_Orientation);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_Orientation);
   }
   if (device::Present & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_Present);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_Present);
   }
   if (device::AngularAcceleration & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_AngularAcceleration);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_AngularAcceleration);
   }
   if (device::LinearAcceleration & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_LinearAcceleration);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_LinearAcceleration);
   }
   if (device::StageParameters & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_StageParameters);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_StageParameters);
   }
   if (device::MountDetection & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_MountDetection);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_MountDetection);
   }
   if (device::PositionEmulated & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_PositionEmulated);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_PositionEmulated);
   }
   if (device::InlineSession & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_Inline);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_Inline);
   }
   if (device::ImmersiveVRSession & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_ImmersiveVR);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_ImmersiveVR);
   }
   if (device::ImmersiveARSession & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::VRDisplayCapabilityFlags::Cap_ImmersiveAR);
+    result |= static_cast<uint16_t>(PlatformXR::VRDisplayCapabilityFlags::Cap_ImmersiveAR);
   }
   //m.deviceCapabilities = aFlags;
-  m.system.displayState.capabilityFlags = static_cast<mozilla::gfx::VRDisplayCapabilityFlags>(result);
+  m.system.displayState.capabilityFlags = static_cast<PlatformXR::VRDisplayCapabilityFlags>(result);
   m.system.sensorState.flags = m.system.displayState.capabilityFlags;
 }
 
@@ -308,9 +263,9 @@ ExternalVR::SetFieldOfView(const device::Eye aEye, const double aLeftDegrees,
                            const double aRightDegrees,
                            const double aTopDegrees,
                            const double aBottomDegrees) {
-  mozilla::gfx::VRDisplayState::Eye which = (aEye == device::Eye::Right
-                                             ? mozilla::gfx::VRDisplayState::Eye_Right
-                                             : mozilla::gfx::VRDisplayState::Eye_Left);
+  PlatformXR::VRDisplayState::Eye which = (aEye == device::Eye::Right
+                                             ? PlatformXR::VRDisplayState::Eye_Right
+                                             : PlatformXR::VRDisplayState::Eye_Left);
   m.system.displayState.eyeFOV[which].upDegrees = aTopDegrees;
   m.system.displayState.eyeFOV[which].rightDegrees = aRightDegrees;
   m.system.displayState.eyeFOV[which].downDegrees = aBottomDegrees;
@@ -319,9 +274,9 @@ ExternalVR::SetFieldOfView(const device::Eye aEye, const double aLeftDegrees,
 
 void
 ExternalVR::SetEyeOffset(const device::Eye aEye, const float aX, const float aY, const float aZ) {
-  mozilla::gfx::VRDisplayState::Eye which = (aEye == device::Eye::Right
-                                             ? mozilla::gfx::VRDisplayState::Eye_Right
-                                             : mozilla::gfx::VRDisplayState::Eye_Left);
+  PlatformXR::VRDisplayState::Eye which = (aEye == device::Eye::Right
+                                             ? PlatformXR::VRDisplayState::Eye_Right
+                                             : PlatformXR::VRDisplayState::Eye_Left);
   m.system.displayState.eyeTranslation[which].x = aX;
   m.system.displayState.eyeTranslation[which].y = aY;
   m.system.displayState.eyeTranslation[which].z = aZ;
@@ -354,7 +309,7 @@ void
 ExternalVR::PushSystemState() {
   Lock lock(&(m.data.systemMutex));
   if (lock.IsLocked()) {
-    memcpy(&(m.data.state), &(m.system), sizeof(mozilla::gfx::VRSystemState));
+    memcpy(&(m.data.systemState), &(m.system), sizeof(PlatformXR::VRSystemState));
     pthread_cond_signal(&m.data.systemCond);
   }
 }
@@ -414,22 +369,22 @@ uint16_t
 ExternalVR::GetControllerCapabilityFlags(device::CapabilityFlags aFlags) {
   uint16_t result = 0;
   if (device::Position & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_Position);
   }
   if (device::Orientation & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Orientation);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_Orientation);
   }
   if (device::AngularAcceleration & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_AngularAcceleration);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_AngularAcceleration);
   }
   if (device::LinearAcceleration & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_LinearAcceleration);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_LinearAcceleration);
   }
   if (device::PositionEmulated & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_PositionEmulated);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_PositionEmulated);
   }
   if (device::GripSpacePosition & aFlags) {
-    result |= static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition);
+    result |= static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_GripSpacePosition);
   }
 
   return result;
@@ -441,7 +396,7 @@ ExternalVR::GetVRState() const {
     return VRState::NotPresenting;
   } else if (m.browser.navigationTransitionActive) {
     return VRState::LinkTraversal;
-  } else if (m.firstPresentingFrame || m.waitingForExit || m.browser.layerState[0].type != mozilla::gfx::VRLayerType::LayerType_Stereo_Immersive) {
+  } else if (m.firstPresentingFrame || m.waitingForExit || m.browser.layerState[0].type != PlatformXR::VRLayerType::LayerType_Stereo_Immersive) {
     return VRState::Loading;
   }
 
@@ -474,7 +429,7 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
     if (controller.immersiveName.empty() || !controller.enabled) {
       continue;
     }
-    mozilla::gfx::VRControllerState& immersiveController = m.system.controllerState[i];
+    PlatformXR::VRControllerState& immersiveController = m.system.controllerState[i];
     memcpy(immersiveController.controllerName, controller.immersiveName.c_str(), controller.immersiveName.size() + 1);
     immersiveController.numButtons = controller.numButtons;
     immersiveController.buttonPressed = controller.immersivePressedState;
@@ -487,17 +442,17 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
       immersiveController.axisValue[j] = controller.immersiveAxes[j];
     }
     immersiveController.numHaptics = controller.numHaptics;
-    immersiveController.hand = controller.leftHanded ? mozilla::gfx::ControllerHand::Left : mozilla::gfx::ControllerHand::Right;
-    immersiveController.type = GetVRControllerTypeByDevice(controller.type);
+    immersiveController.hand = controller.leftHanded ? PlatformXR::ControllerHand::Left : PlatformXR::ControllerHand::Right;
+
 
     const uint16_t flags = GetControllerCapabilityFlags(controller.deviceCapabilities);
-    immersiveController.flags = static_cast<mozilla::gfx::ControllerCapabilityFlags>(flags);
+    immersiveController.flags = static_cast<PlatformXR::ControllerCapabilityFlags>(flags);
     const vrb::Matrix beamTransform = controller.transformMatrix.PostMultiply(controller.immersiveBeamTransform);
-    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Orientation)) {
+    if (flags & static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_Orientation)) {
       immersiveController.isOrientationValid = true;
 
       vrb::Quaternion rotate;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
+      if (flags & static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
         rotate = controller.transformMatrix;
         rotate = rotate.Inverse();
         memcpy(&(immersiveController.pose.orientation), rotate.Data(), sizeof(immersiveController.pose.orientation));
@@ -506,12 +461,12 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
       rotate = rotate.Inverse();
       memcpy(&(immersiveController.targetRayPose.orientation), rotate.Data(), sizeof(immersiveController.targetRayPose.orientation));
     }
-    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position) ||
-      flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_PositionEmulated)) {
+    if (flags & static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_Position) ||
+      flags & static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_PositionEmulated)) {
       immersiveController.isPositionValid = true;
 
       vrb::Vector position;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
+      if (flags & static_cast<uint16_t>(PlatformXR::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
         position = controller.transformMatrix.GetTranslation();
         memcpy(&(immersiveController.pose.position), position.Data(), sizeof(immersiveController.pose.position));
       }
@@ -519,9 +474,9 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
       memcpy(&(immersiveController.targetRayPose.position), position.Data(), sizeof(immersiveController.targetRayPose.position));
     }
     // TODO:: We should add TargetRayMode::_end in moz_external_vr.h to help this check.
-    //ASSERT((uint8_t)mozilla::gfx::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
-    immersiveController.targetRayMode = (mozilla::gfx::TargetRayMode)controller.targetRayMode;
-    immersiveController.mappingType = mozilla::gfx::GamepadMappingType::XRStandard;
+    //ASSERT((uint8_t)PlatformXR::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
+    immersiveController.targetRayMode = (PlatformXR::TargetRayMode)controller.targetRayMode;
+    immersiveController.mappingType = PlatformXR::GamepadMappingType::XRStandard;
     immersiveController.selectActionStartFrameId = controller.selectActionStartFrameId;
     immersiveController.selectActionStopFrameId = controller.selectActionStopFrameId;
     immersiveController.squeezeActionStartFrameId = controller.squeezeActionStartFrameId;
@@ -574,11 +529,11 @@ ExternalVR::CompleteEnumeration()
 
 
 void
-ExternalVR::GetFrameResult(int32_t& aSurfaceHandle, int32_t& aTextureWidth, int32_t& aTextureHeight,
+ExternalVR::GetFrameResult(AHardwareBuffer** aHardwareBuffer, int32_t& aTextureWidth, int32_t& aTextureHeight,
     device::EyeRect& aLeftEye, device::EyeRect& aRightEye) const {
-  aSurfaceHandle = (int32_t)m.browser.layerState[0].layer_stereo_immersive.textureHandle;
-  mozilla::gfx::VRLayerEyeRect& left = m.browser.layerState[0].layer_stereo_immersive.leftEyeRect;
-  mozilla::gfx::VRLayerEyeRect& right = m.browser.layerState[0].layer_stereo_immersive.rightEyeRect;
+  *aHardwareBuffer = m.browser.layerState[0].layer_stereo_immersive.textureHandle;
+  PlatformXR::VRLayerEyeRect& left = m.browser.layerState[0].layer_stereo_immersive.leftEyeRect;
+  PlatformXR::VRLayerEyeRect& right = m.browser.layerState[0].layer_stereo_immersive.rightEyeRect;
   aLeftEye = device::EyeRect(left.x, left.y, left.width, left.height);
   aRightEye = device::EyeRect(right.x, right.y, right.width, right.height);
   aTextureWidth = (int32_t)m.browser.layerState[0].layer_stereo_immersive.textureSize.width;
@@ -590,7 +545,7 @@ ExternalVR::SetHapticState(ControllerContainerPtr aControllerContainer) const {
   const uint32_t count = aControllerContainer->GetControllerCount();
   uint32_t i = 0, j = 0;
   for (i = 0; i < count; ++i) {
-    for (j = 0; j < mozilla::gfx::kVRHapticsMaxCount; ++j) {
+    for (j = 0; j < PlatformXR::kVRHapticsMaxCount; ++j) {
       if (m.browser.hapticState[j].controllerIndex == i && m.browser.hapticState[j].inputFrameID) {
         aControllerContainer->SetHapticFeedback(i, m.browser.hapticState[j].inputFrameID,
                 m.browser.hapticState[j].pulseDuration + m.browser.hapticState[j].pulseStart,
@@ -599,7 +554,7 @@ ExternalVR::SetHapticState(ControllerContainerPtr aControllerContainer) const {
       }
     }
     // All hapticState has already been reset to zero, so it can't be match.
-    if (j == mozilla::gfx::kVRHapticsMaxCount) {
+    if (j == PlatformXR::kVRHapticsMaxCount) {
       aControllerContainer->SetHapticFeedback(i, 0, 0.0f, 0.0f);
     }
   }

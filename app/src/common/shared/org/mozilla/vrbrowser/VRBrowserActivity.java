@@ -42,6 +42,9 @@ import androidx.lifecycle.LifecycleRegistry;
 import androidx.lifecycle.ViewModelStore;
 import androidx.lifecycle.ViewModelStoreOwner;
 
+import com.wpe.wpe.VRManager;
+import com.wpe.wpeview.WPEView;
+
 import org.json.JSONObject;
 import org.mozilla.vrbrowser.audio.AudioEngine;
 import org.mozilla.vrbrowser.browser.Accounts;
@@ -209,6 +212,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        WPEView.initialize(this);
         SettingsStore.getInstance(getBaseContext()).setPid(Process.myPid());
         ((VRBrowserApplication)getApplication()).onActivityCreate(this);
 
@@ -894,7 +898,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     @Keep
     @SuppressWarnings("unused")
     void registerExternalContext(long aContext) {
-        // GeckoVRManager.setExternalContext(aContext);
+        VRManager.setExternalData(aContext);
     }
 
     final Object mCompositorLock = new Object();

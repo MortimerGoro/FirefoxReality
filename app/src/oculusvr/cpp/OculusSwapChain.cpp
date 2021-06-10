@@ -44,7 +44,7 @@ OculusSwapChain::CreateFBO(vrb::RenderContextPtr& aContext, const vrb::FBO::Attr
 OculusSwapChainPtr OculusSwapChain::CreateAndroidSurface(JNIEnv* aEnv, uint32_t aWidth, uint32_t aHeight) {
   auto result = std::make_shared<OculusSwapChain>();
 
-  result->mSwapChain = vrapi_CreateAndroidSurfaceSwapChain(aWidth, aHeight);
+  result->mSwapChain = vrapi_CreateAndroidSurfaceSwapChain3(aWidth, aHeight, VRAPI_ANDROID_SURFACE_SWAP_CHAIN_FLAG_SYNCHRONOUS);
   result->mWidth = aWidth;
   result->mHeight = aHeight;
 

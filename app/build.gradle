@@ -64,7 +64,7 @@ android {
         applicationId "org.mozilla.vrbrowser"
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
-        ndkVersion '21.1.6352462'
+        ndkVersion '22.1.7171670'
         versionCode 1
         versionName "12.2"
         buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
@@ -143,8 +143,8 @@ android {
             dimension "platform"
             externalNativeBuild {
                 cmake {
-                    cppFlags "-DOCULUSVR -DSTORE_BUILD=0" + getOpenXRFlags()
-                    arguments "-DVR_SDK_LIB=oculusvr-lib", "-DVR_SDK_EXTRA_LIB=ovrplatform-lib", "-DOCULUSVR=ON", getOpenXRCMakeFlags()
+                    cppFlags "-DOCULUSVR -DANDROID_PLATFORM=29 -DSTORE_BUILD=0" + getOpenXRFlags()
+                    arguments "-DVR_SDK_LIB=oculusvr-lib", "-DANDROID_PLATFORM=29", "-DVR_SDK_EXTRA_LIB=ovrplatform-lib", "-DOCULUSVR=ON", getOpenXRCMakeFlags()
                 }
             }
             manifestPlaceholders = [ headtrackingRequired:"false", permissionToRemove:"android.permission.RECEIVE_BOOT_COMPLETED" ]
@@ -460,6 +460,7 @@ dependencies {
 
     // WPE
     implementation project(':wpe')
+    //implementation project(path: ':wpe', configuration: 'minApi26Debug')
     //implementation fileTree(dir: "${project.rootDir}/../wpe-android/wpe/build/outputs/aar/", include: ['*.aar'])
 
     // Kotlin dependency

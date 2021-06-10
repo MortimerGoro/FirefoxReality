@@ -13,6 +13,8 @@
 #include "ExternalVR.h"
 #include <memory>
 
+struct AHardwareBuffer;
+
 namespace crow {
 
 class ExternalBlitter;
@@ -21,11 +23,11 @@ typedef std::shared_ptr<ExternalBlitter> ExternalBlitterPtr;
 class ExternalBlitter : protected vrb::ResourceGL {
 public:
   static ExternalBlitterPtr Create(vrb::CreationContextPtr& aContext);
-  void StartFrame(const int32_t aSurfaceHandle, const device::EyeRect& aLeftEye, const device::EyeRect& aRightEye);
+  void StartFrame(AHardwareBuffer*, const device::EyeRect& aLeftEye, const device::EyeRect& aRightEye);
   void Draw(const device::Eye aEye);
   void EndFrame();
   void StopPresenting();
-  void CancelFrame(const int32_t aSurfaceHandle);
+  void CancelFrame(AHardwareBuffer*);
 protected:
   struct State;
   ExternalBlitter(State& aState, vrb::CreationContextPtr& aContext);

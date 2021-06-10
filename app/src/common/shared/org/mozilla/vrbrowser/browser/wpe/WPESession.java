@@ -15,11 +15,9 @@ import org.mozilla.vrbrowser.browser.api.SessionAPI;
 import org.mozilla.vrbrowser.browser.api.SessionSettingsAPI;
 import org.mozilla.vrbrowser.browser.api.SessionStateAPI;
 import org.mozilla.vrbrowser.browser.api.SessionTextInput;
-import org.mozilla.vrbrowser.browser.engine.SessionStore;
 import org.mozilla.vrbrowser.ui.widgets.WindowWidget;
 
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.ArrayList;
 
 
 public class WPESession extends SessionAPI implements WPEViewClient, WebChromeClient {
@@ -44,10 +42,10 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
 
     @Override
     public void open(RuntimeAPI runtime) {
+        mRuntime = runtime;
         mWPEView = new WPEView(mContext);
         mWPEView.setWPEViewClient(this);
         mWPEView.setWebChromeClient(this);
-        mRuntime = runtime;
     }
 
     @Override
@@ -170,6 +168,7 @@ public class WPESession extends SessionAPI implements WPEViewClient, WebChromeCl
             throw new RuntimeException("Display already acquired");
         }
         mDisplay = new WPEDisplay(mWPEView, this);
+
         return mDisplay;
     }
 

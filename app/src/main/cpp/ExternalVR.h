@@ -14,8 +14,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <android/hardware_buffer.h>
 
-namespace mozilla { namespace gfx { struct VRExternalShmem; } }
+namespace PlatformXR {  struct VRExternalShmem; }
 
 namespace crow {
 
@@ -35,7 +36,7 @@ public:
     Servo
   };
   static ExternalVRPtr Create();
-  mozilla::gfx::VRExternalShmem* GetSharedData();
+  PlatformXR::VRExternalShmem* GetSharedData();
   // DeviceDisplay interface
   void SetDeviceName(const std::string& aName) override;
   void SetCapabilityFlags(const device::CapabilityFlags aFlags) override;
@@ -57,7 +58,7 @@ public:
   VRState GetVRState() const;
   void PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<Controller>& aControllers, const double aTimestamp);
   bool WaitFrameResult();
-  void GetFrameResult(int32_t& aSurfaceHandle,
+  void GetFrameResult(AHardwareBuffer**,
                       int32_t& aTextureWidth,
                       int32_t& aTextureHeight,
                       device::EyeRect& aLeftEye,

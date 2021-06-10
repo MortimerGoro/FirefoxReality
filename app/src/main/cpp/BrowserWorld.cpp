@@ -1554,10 +1554,11 @@ BrowserWorld::TickImmersive() {
       m.externalVR->PushFramePoses(m.device->GetHeadTransform(), m.controllers->GetControllers(),
                                    m.context->GetTimestamp());
   }
-  int32_t surfaceHandle, textureWidth, textureHeight = 0;
+  AHardwareBuffer* buffer = nullptr;
+  int32_t textureWidth, textureHeight = 0;
   device::EyeRect leftEye, rightEye;
   bool aDiscardFrame = !m.externalVR->WaitFrameResult();
-  m.externalVR->GetFrameResult(surfaceHandle, textureWidth, textureHeight, leftEye, rightEye);
+  m.externalVR->GetFrameResult(&buffer, textureWidth, textureHeight, leftEye, rightEye);
   ExternalVR::VRState state = m.externalVR->GetVRState();
   if (supportsFrameAhead) {
       if (framePrediction != DeviceDelegate::FramePrediction::ONE_FRAME_AHEAD) {
@@ -1578,7 +1579,7 @@ BrowserWorld::TickImmersive() {
       if (textureWidth > 0 && textureHeight > 0) {
         m.device->SetImmersiveSize((uint32_t) textureWidth/2, (uint32_t) textureHeight);
       }
-      m.blitter->StartFrame(surfaceHandle, leftEye, rightEye);
+      m.blitter->StartFrame(buffer, leftEye, rightEye);
       if (m.webXRInterstialState != WebXRInterstialState::HIDDEN) {
         TickWebXRInterstitial();
       } else {
@@ -1597,8 +1598,8 @@ BrowserWorld::TickImmersive() {
       m.blitter->EndFrame();
     };
   } else {
-    if (surfaceHandle != 0) {
-      m.blitter->CancelFrame(surfaceHandle);
+    if (buffer != 0) {
+      m.blitter->CancelFrame(buffer);
     }
     TickWebXRInterstitial();
   }

@@ -4,15 +4,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "ExternalBlitter.h"
-#include "GeckoSurfaceTexture.h"
 #include "vrb/ConcreteClass.h"
 #include "vrb/private/ResourceGLState.h"
 #include "vrb/gl.h"
 #include "vrb/GLError.h"
 #include "vrb/Logger.h"
 #include "vrb/ShaderUtil.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 
-#include <map>
+#include <unordered_map>
 
 namespace {
 const char* sVertexShader = R"SHADER(
@@ -26,10 +27,9 @@ void main(void) {
 )SHADER";
 
 const char* sFragmentShader = R"SHADER(
-#extension GL_OES_EGL_image_external : require
 precision mediump float;
 
-uniform samplerExternalOES u_texture0;
+uniform sampler2D u_texture0;
 
 varying vec2 v_uv;
 
@@ -49,6 +49,85 @@ const GLfloat sVerticies[] = {
 
 namespace crow {
 
+struct EGLExtensions {
+    PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC getNativeClientBufferANDROID { nullptr };
+    PFNEGLCREATEIMAGEKHRPROC createImageKHR { nullptr };
+    PFNEGLDESTROYIMAGEKHRPROC destroyImageKHR { nullptr};
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC imageTargetTexture2DOES { nullptr };
+
+    static EGLExtensions& instance() {
+      static EGLExtensions* sInstance = nullptr;
+      if (!sInstance) {
+        sInstance = new EGLExtensions();
+      }
+      return *sInstance;
+    }
+
+    bool supportsImageKHR() const {
+      return getNativeClientBufferANDROID && createImageKHR && destroyImageKHR && imageTargetTexture2DOES;
+    }
+
+private:
+    EGLExtensions() {
+      getNativeClientBufferANDROID = reinterpret_cast<PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC>(eglGetProcAddress("eglGetNativeClientBufferANDROID"));
+      createImageKHR = reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(eglGetProcAddress("eglCreateImageKHR"));
+      destroyImageKHR = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
+      imageTargetTexture2DOES = reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(eglGetProcAddress("glEGLImageTargetTexture2DOES"));
+    }
+};
+
+struct AHardwareBufferCache;
+typedef std::shared_ptr<AHardwareBufferCache> AHardwareBufferCachePtr;
+
+struct AHardwareBufferCache {
+    AHardwareBuffer* hardwareBuffer { nullptr };
+    EGLClientBuffer clientBuffer { nullptr };
+    EGLImageKHR image { EGL_NO_IMAGE_KHR };
+    GLuint texture { 0 };
+
+    static AHardwareBufferCachePtr create(AHardwareBuffer* hardwareBuffer) {
+      auto& ext = EGLExtensions::instance();
+      if (!ext.supportsImageKHR() || !hardwareBuffer) {
+        return nullptr;
+      }
+
+      auto result = std::make_shared<AHardwareBufferCache>();
+      result->hardwareBuffer = hardwareBuffer;
+      result->clientBuffer = ext.getNativeClientBufferANDROID(hardwareBuffer);
+      if (!result->clientBuffer) {
+        return nullptr;
+      }
+      result->image = ext.createImageKHR(eglGetDisplay(EGL_DEFAULT_DISPLAY), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, result->clientBuffer, nullptr);
+      if (result->image == EGL_NO_IMAGE_KHR) {
+        return nullptr;
+      }
+
+      VRB_GL_CHECK(glGenTextures(1, &result->texture));
+      if (!result->texture) {
+        return nullptr;
+      }
+      VRB_GL_CHECK(glBindTexture(GL_TEXTURE_2D, result->texture));
+      ext.imageTargetTexture2DOES(GL_TEXTURE_2D, result->image);
+
+      return result;
+    }
+
+    ~AHardwareBufferCache() {
+      auto& ext = EGLExtensions::instance();
+      if (texture) {
+        VRB_GL_CHECK(glDeleteTextures(1, &texture));
+      }
+      if (image != EGL_NO_IMAGE_KHR) {
+        ext.destroyImageKHR(eglGetDisplay(EGL_DEFAULT_DISPLAY), image);
+      }
+      if (hardwareBuffer) {
+        AHardwareBuffer_release(hardwareBuffer);
+      }
+    }
+};
+
+typedef std::shared_ptr<AHardwareBufferCache> AHardwareBufferCachePtr;
+
 struct ExternalBlitter::State : public vrb::ResourceGL::State {
   GLuint vertexShader;
   GLuint fragmentShader;
@@ -57,10 +136,10 @@ struct ExternalBlitter::State : public vrb::ResourceGL::State {
   GLint aUV;
   GLint uTexture0;
   device::EyeRect eyes[device::EyeCount];
-  GeckoSurfaceTexturePtr surface;
+  AHardwareBufferCachePtr surface;
   GLfloat leftUV[8];
   GLfloat rightUV[8];
-  std::map<const int32_t, GeckoSurfaceTexturePtr> surfaceMap;
+  std::unordered_map<AHardwareBuffer*, AHardwareBufferCachePtr> surfaceMap;
   State()
       : vertexShader(0)
       , fragmentShader(0)
@@ -68,8 +147,8 @@ struct ExternalBlitter::State : public vrb::ResourceGL::State {
       , aPosition(0)
       , aUV(0)
       , uTexture0(0)
-      , leftUV{0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.0f, 0.5f, 1.0f}
-      , rightUV{0.5f, 0.0f, 0.5f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f}
+      , leftUV{0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f, 0.5f, 0.0f}
+      , rightUV{0.5f, 1.0f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f}
   {}
 };
 
@@ -79,30 +158,22 @@ ExternalBlitter::Create(vrb::CreationContextPtr& aContext) {
 }
 
 void
-ExternalBlitter::StartFrame(const int32_t aSurfaceHandle, const device::EyeRect& aLeftEye,
-                            const device::EyeRect& aRightEye) {
-  std::map<const int32_t, GeckoSurfaceTexturePtr>::iterator iter = m.surfaceMap.find(aSurfaceHandle);
+ExternalBlitter::StartFrame(AHardwareBuffer* buffer, const device::EyeRect& aLeftEye, const device::EyeRect& aRightEye) {
+  auto it = m.surfaceMap.find(buffer);
 
-  if (iter == m.surfaceMap.end()) {
-    VRB_LOG("Creating GeckoSurfaceTexture for handle: %d", aSurfaceHandle);
-    m.surface = GeckoSurfaceTexture::Create(aSurfaceHandle);
-    m.surfaceMap[aSurfaceHandle] = m.surface;
+  if (it == m.surfaceMap.end()) {
+    VRB_LOG("Creating ImageKHR for AHardwareBuffer: %p", buffer);
+    m.surface = AHardwareBufferCache::create(buffer);
+    m.surfaceMap[buffer] = m.surface;
   } else {
-    m.surface = iter->second;
+    m.surface = it->second;
   }
 
   if (!m.surface) {
-    VRB_ERROR("Failed to find GeckoSurfaceTexture for handle: %d", aSurfaceHandle);
+    VRB_ERROR("Failed to find ImageKHR for AHardwareBuffer: %p", buffer);
     return;
   }
 
-
-  EGLContext  ctx = eglGetCurrentContext();
-  if (!m.surface->IsAttachedToGLContext(ctx)) {
-    m.surface->AttachToGLContext(ctx);
-  }
-
-  m.surface->UpdateTexImage();
   m.eyes[device::EyeIndex(device::Eye::Left)] = aLeftEye;
   m.eyes[device::EyeIndex(device::Eye::Right)] = aRightEye;
 }
@@ -119,7 +190,7 @@ ExternalBlitter::Draw(const device::Eye aEye) {
   }
   VRB_GL_CHECK(glUseProgram(m.program));
   VRB_GL_CHECK(glActiveTexture(GL_TEXTURE0));
-  VRB_GL_CHECK(glBindTexture(GL_TEXTURE_EXTERNAL_OES, m.surface->GetTextureName()));
+  VRB_GL_CHECK(glBindTexture(GL_TEXTURE_2D, m.surface->texture));
   //m.defaultT->Bind();
   VRB_GL_CHECK(glUniform1i(m.uTexture0, 0));
   VRB_GL_CHECK(glVertexAttribPointer((GLuint)m.aPosition, 3, GL_FLOAT, GL_FALSE, 0, sVerticies));
@@ -135,42 +206,18 @@ ExternalBlitter::Draw(const device::Eye aEye) {
 
 void
 ExternalBlitter::EndFrame() {
-  if (m.surface) {
-    // We need to detach the SurfaceTexture to prevent the Gecko WebGL compositor from getting blocked.
-    m.surface->ReleaseTexImage();
-    m.surface = nullptr;
-  }
+  m.surface = nullptr;
 }
 
 void
 ExternalBlitter::StopPresenting() {
-
-  if (m.surface) {
-    m.surface->ReleaseTexImage();
-    m.surface = nullptr;
-  }
+  m.surface = nullptr;
   m.surfaceMap.clear();
 }
 
 void
-ExternalBlitter::CancelFrame(const int32_t aSurfaceHandle) {
-  GeckoSurfaceTexturePtr surface;
-  auto iter = m.surfaceMap.find(aSurfaceHandle);
-  if (iter != m.surfaceMap.end()) {
-    surface = iter->second;
-  } else {
-    surface = GeckoSurfaceTexture::Create(aSurfaceHandle);
-    m.surfaceMap[aSurfaceHandle] = surface;
-  }
+ExternalBlitter::CancelFrame(AHardwareBuffer*) {
 
-  if (surface) {
-    EGLContext ctx = eglGetCurrentContext();
-    if (!surface->IsAttachedToGLContext(ctx)) {
-      surface->AttachToGLContext(ctx);
-    }
-    surface->UpdateTexImage();
-    surface->ReleaseTexImage();
-  }
 }
 
 ExternalBlitter::ExternalBlitter(State& aState, vrb::CreationContextPtr& aContext)
