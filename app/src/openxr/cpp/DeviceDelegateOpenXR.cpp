@@ -228,7 +228,7 @@ struct DeviceDelegateOpenXR::State {
   }
 
   XrSwapchainCreateInfo GetSwapChainCreateInfo(uint32_t w = 0, uint32_t h = 0) {
-    const int64_t colorFormat = GL_RGBA8;
+    const int64_t colorFormat = GL_SRGB8_ALPHA8;
     CHECK_MSG(SupportsColorFormat(colorFormat), "Runtime doesn't support selected swapChain color format");
 
     CHECK(viewConfig.size() > 0);
@@ -606,6 +606,9 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
     VRB_ERROR("OpenXR StartFrame called while not in VR mode");
     return;
   }
+
+  // Fix brigthness issue.
+  glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 
   CHECK(m.session != XR_NULL_HANDLE);
   CHECK(m.viewSpace != XR_NULL_HANDLE);

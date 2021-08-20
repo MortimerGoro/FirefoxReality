@@ -1688,7 +1688,7 @@ BrowserWorld::CreateSkyBox(const std::string& aBasePath, const std::string& aExt
     return;
   }
   const std::string extension = aExtension.empty() ? ".ktx" : aExtension;
-  const GLenum glFormat = extension == ".ktx" ? GL_COMPRESSED_RGB8_ETC2 : GL_RGBA8;
+  const GLenum glFormat = extension == ".ktx" ? GL_COMPRESSED_SRGB8_ETC2 : GL_RGBA8;
   const int32_t size = 1024;
   if (m.skybox) {
     m.skybox->SetVisible(true);

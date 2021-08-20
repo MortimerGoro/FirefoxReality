@@ -34,8 +34,8 @@ function compressAsset(source, target, rgba, done) {
 
     try {
         console.log("About to compress: " + target);
-        var format = rgba ? "RGBA8" : "RGB8";
-        var out = execSync(`EtcTool ${source} -output ${target} -format ${format} -effort 100 -v`).toString();
+        var format = rgba ? "SRGBA8" : "SRGB8";
+        var out = execSync(`EtcTool ${source} -output ${target} -format ${format} -effort 30 -v`).toString();
         console.log(out);
         done();
     } catch (err) {
@@ -48,10 +48,9 @@ gulp.task('compress', function(done) {
     let pending = 0;
     let finished = false;
     const settings = {
-        root: assetsPath,
         fileFilter: assetFilter
     };
-    readdirp(settings)
+    readdirp(assetsPath, settings)
     .on('data', function (entry) {
         pending++;
         const name = entry.fullPath;
