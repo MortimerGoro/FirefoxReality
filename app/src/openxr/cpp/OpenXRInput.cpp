@@ -19,6 +19,7 @@ OpenXRInputPtr OpenXRInput::Create(XrInstance instance, XrSystemProperties syste
 
 void
 OpenXRInput::Initialize(XrSession session) {
+  return;
   CHECK(session != XR_NULL_HANDLE);
 
   // Create the main action set.
@@ -220,6 +221,7 @@ OpenXRInput::Initialize(XrSession session) {
 }
 
 void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, device::RenderMode renderMode, ControllerDelegatePtr& delegate) {
+  return;
   CHECK(session != XR_NULL_HANDLE);
 
   // Sync actions
@@ -422,7 +424,8 @@ int32_t OpenXRInput::GetControllerModelCount() const {
 #ifdef OCULUSVR
   return systemProperties.trackingProperties.positionTracking ? 2 : 1;
 #else
-#error Platform controller not implemented
+//#error Platform controller not implemented
+return 0;
 #endif
 }
 
@@ -442,7 +445,8 @@ const std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex)
     return "vr_controller_oculusgo.obj";
   }
 #else
-#error Platform controller not implemented
+//#error Platform controller not implemented
+return 0;
 #endif
 }
 
