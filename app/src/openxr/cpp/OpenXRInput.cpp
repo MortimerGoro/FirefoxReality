@@ -19,7 +19,6 @@ OpenXRInputPtr OpenXRInput::Create(XrInstance instance, XrSystemProperties syste
 
 void
 OpenXRInput::Initialize(XrSession session) {
-  return;
   CHECK(session != XR_NULL_HANDLE);
 
   // Create the main action set.
@@ -71,6 +70,7 @@ OpenXRInput::Initialize(XrSession session) {
 
   // Create input actions for menu click detection, usually used for back action.
   createBooleanAction("menu", actionMenuClick);
+  createBooleanAction("menu", actionBackClick);
 
   // Create an input action for trigger click, touch and value detection
   createBooleanAction("trigger_click", actionTriggerClick);
@@ -106,6 +106,7 @@ OpenXRInput::Initialize(XrSession session) {
   CHECK_XRCMD(xrStringToPath(instance, "/user/hand/right/" subpath, &variable[Hand::Right]));
 
   DECLARE_PATH("input/select/click", selectClickPath);
+  DECLARE_PATH("input/home/click", homeClickPath);
   DECLARE_PATH("input/trigger/value", triggerValuePath);
   DECLARE_PATH("input/trigger/touch", triggerTouchPath);
   DECLARE_PATH("input/trigger/click", triggerClickPath);
@@ -148,12 +149,7 @@ OpenXRInput::Initialize(XrSession session) {
     suggestedBindings.interactionProfile = khrSimpleInteractionProfilePath;
     suggestedBindings.suggestedBindings = bindings.data();
     suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
-    CHECK_XRCMD(xrSuggestInteractionProfileBindings(instance, &suggestedBindings));
-  }
-
-  // Suggest bindings for Oculus Go controller
-  {
-
+    XRCMD(xrSuggestInteractionProfileBindings(instance, &suggestedBindings));
   }
 
   // Suggest bindings for Oculus Touch controller.
@@ -194,7 +190,38 @@ OpenXRInput::Initialize(XrSession session) {
     suggestedBindings.interactionProfile = khrSimpleInteractionProfilePath;
     suggestedBindings.suggestedBindings = bindings.data();
     suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
-    CHECK_XRCMD(xrSuggestInteractionProfileBindings(instance, &suggestedBindings));
+    XRCMD(xrSuggestInteractionProfileBindings(instance, &suggestedBindings));
+  }
+
+  // Suggest bindings for Huawei 3DOF controller.
+  {
+    XrPath huaweiControllerPath;
+    CHECK_XRCMD(xrStringToPath(instance, "/interaction_profiles/huawei/controller", &huaweiControllerPath));
+    std::vector<XrActionSuggestedBinding> bindings{{// Controller mappings
+                                                           {actionPose[Hand::Left], posePath[Hand::Left]},
+                                                           {actionPose[Hand::Right], posePath[Hand::Right]},
+                                                           // Actions available only on right controller
+                                                           {actionMenuClick[Hand::Left], homeClickPath[Hand::Left]},
+                                                           {actionMenuClick[Hand::Right], homeClickPath[Hand::Right]},
+                                                           {actionBackClick[Hand::Left], buttonXClickPath[Hand::Left]},
+                                                           {actionBackClick[Hand::Right], buttonXClickPath[Hand::Right]},
+                                                           {actionTriggerValue[Hand::Left], triggerValuePath[Hand::Left]},
+                                                           {actionTriggerValue[Hand::Right], triggerValuePath[Hand::Right]},
+                                                           {actionTriggerClick[Hand::Left], triggerTouchPath[Hand::Left]},
+                                                           {actionTriggerClick[Hand::Right], triggerTouchPath[Hand::Right]},
+                                                           {actionTrackpadClick[Hand::Left], trackpadClickPath[Hand::Left]},
+                                                           {actionTrackpadClick[Hand::Right], trackpadClickPath[Hand::Right]},
+                                                           {actionTrackpadTouch[Hand::Left], trackpadTouchPath[Hand::Left]},
+                                                           {actionTrackpadTouch[Hand::Right], trackpadTouchPath[Hand::Right]},
+                                                           {actionTrackpadX[Hand::Left], trackpadXPath[Hand::Left]},
+                                                           {actionTrackpadX[Hand::Right], trackpadXPath[Hand::Right]},
+                                                           {actionTrackpadY[Hand::Left], trackpadYPath[Hand::Left]},
+                                                           {actionTrackpadY[Hand::Right], trackpadYPath[Hand::Right]}}};
+    XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+    suggestedBindings.interactionProfile = huaweiControllerPath;
+    suggestedBindings.suggestedBindings = bindings.data();
+    suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
+    XRCMD(xrSuggestInteractionProfileBindings(instance, &suggestedBindings));
   }
 
   // Initialize pose actions
@@ -221,7 +248,6 @@ OpenXRInput::Initialize(XrSession session) {
 }
 
 void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, device::RenderMode renderMode, ControllerDelegatePtr& delegate) {
-  return;
   CHECK(session != XR_NULL_HANDLE);
 
   // Sync actions
@@ -318,6 +344,7 @@ void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace
 
     // Query buttons and axes
     QUERY_BOOLEAN_STATE(menuClick, actionMenuClick);
+    QUERY_BOOLEAN_STATE(backClick, actionBackClick);
     QUERY_BOOLEAN_STATE(triggerClick, actionTriggerClick);
     QUERY_BOOLEAN_STATE(triggerTouch, actionTriggerTouch);
     QUERY_FLOAT_STATE(triggerValue, actionTriggerValue);
@@ -341,6 +368,11 @@ void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace
 
     if (menuClick.isActive) {
       const bool pressed = menuClick.currentState != 0;
+      delegate->SetButtonState(index, ControllerDelegate::BUTTON_APP, -1, pressed, pressed);
+    }
+
+    if (backClick.isActive) {
+      const bool pressed = backClick.currentState != 0;
       delegate->SetButtonState(index, ControllerDelegate::BUTTON_APP, -1, pressed, pressed);
     }
 

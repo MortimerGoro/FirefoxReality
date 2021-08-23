@@ -90,9 +90,18 @@ inline XrResult CheckXrResult(XrResult res, const char* originator = nullptr, co
     return res;
 }
 
+inline XrResult MessageXrResult(XrResult res, const char* originator = nullptr, const char* sourceLocation = nullptr) {
+    if (XR_FAILED(res)) {
+        VRB_ERROR("XrResult failure [%s] %s %s", to_string(res), originator, sourceLocation);
+    }
+
+    return res;
+}
+
 #define THROW_XR(xr, cmd) ThrowXrResult(xr, #cmd, FILE_AND_LINE);
 #define CHECK_XRCMD(cmd) CheckXrResult(cmd, #cmd, FILE_AND_LINE);
 #define CHECK_XRRESULT(res, cmdStr) CheckXrResult(res, cmdStr, FILE_AND_LINE);
+#define XRCMD(cmd) MessageXrResult(cmd, #cmd, FILE_AND_LINE);
 
 
 inline XrPosef XrPoseIdentity() {
