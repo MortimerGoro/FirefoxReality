@@ -168,7 +168,7 @@ struct DeviceDelegateOpenXR::State {
     OpenXRExtensions::LoadExtensions(instance);
 
     // Initialize System
-    XrSystemGetInfo systemInfo{XR_TYPE_SYSTEM_GET_INFO};
+    XrSystemGetInfo systemInfo{XR_TYPE_SYSTEM_GET_INFO };
     systemInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
     CHECK_XRCMD(xrGetSystem(instance, &systemInfo, &system));
     CHECK_MSG(system != XR_NULL_SYSTEM_ID, "Failed to initialize XRSystem");
@@ -753,7 +753,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
 #endif
 
   // Update controllers
-  m.input->Update(m.session, m.predictedDisplayTime, m.localSpace, m.renderMode, m.controller);
+  m.input->Update(m.session, m.predictedDisplayTime, m.localSpace, head, m.renderMode, m.controller);
 }
 
 void

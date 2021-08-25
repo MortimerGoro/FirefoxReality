@@ -1,13 +1,8 @@
 #pragma once
 
 #include "vrb/Forward.h"
-#include <EGL/egl.h>
-#include "jni.h"
-#include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
-
+#include "OpenXRHelpers.h"
 #include <array>
-
 #include "ControllerDelegate.h"
 #include "ElbowModel.h"
 
@@ -55,9 +50,11 @@ public:
   std::array<ControllerState, Hand::Count> controllerState;
   XrSystemProperties systemProperties;
 
+  ElbowModelPtr elbowModel;
+
   static OpenXRInputPtr Create(XrInstance instance, XrSystemProperties systemProperties);
   void Initialize(XrSession session);
-  void Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, device::RenderMode renderMode, ControllerDelegatePtr& delegate);
+  void Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, const vrb::Matrix& head, device::RenderMode renderMode, ControllerDelegatePtr& delegate);
   int32_t GetControllerModelCount() const;
   const std::string GetControllerModelName(const int32_t aModelIndex) const;
   void Destroy();

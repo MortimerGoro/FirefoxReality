@@ -1,5 +1,6 @@
 #include "OpenXRInput.h"
 #include "OpenXRHelpers.h"
+#include "OpenXRInputMappings.h"
 #include <vector>
 
 namespace crow {
@@ -14,6 +15,7 @@ OpenXRInputPtr OpenXRInput::Create(XrInstance instance, XrSystemProperties syste
   auto result = std::make_shared<OpenXRInput>();
   result->instance = instance;
   result->systemProperties = systemProperties;
+  result->elbowModel = ElbowModel::Create();
   return result;
 }
 
@@ -247,7 +249,7 @@ OpenXRInput::Initialize(XrSession session) {
   CHECK_XRCMD(xrAttachSessionActionSets(session, &attachInfo));
 }
 
-void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, device::RenderMode renderMode, ControllerDelegatePtr& delegate) {
+void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace baseSpace, const vrb::Matrix& head, device::RenderMode renderMode, ControllerDelegatePtr& delegate) {
   CHECK(session != XR_NULL_HANDLE);
 
   // Sync actions
@@ -314,7 +316,10 @@ void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace
       // set up pose
       vrb::Matrix transform = XrPoseToMatrix(spaceLocation.pose);
       if (renderMode == device::RenderMode::StandAlone) {
-        transform.TranslateInPlace(vrb::Vector(0.0f, 1.7f, 0.0f));
+#if HVR
+        transform.TranslateInPlace(vrb::Vector(0.0, -0.2f, 0.0f));
+#endif
+        transform = elbowModel->GetTransform(hand != Hand::Left ? ElbowModel::HandEnum::Left : ElbowModel::HandEnum::Right, head, transform);
       }
       delegate->SetTransform(index, transform);
     } else {
@@ -455,9 +460,10 @@ void OpenXRInput::Update(XrSession session, XrTime predictedDisplayTime, XrSpace
 int32_t OpenXRInput::GetControllerModelCount() const {
 #ifdef OCULUSVR
   return systemProperties.trackingProperties.positionTracking ? 2 : 1;
+#elif defined(HVR)
+  return 1;
 #else
 //#error Platform controller not implemented
-return 0;
 #endif
 }
 
@@ -476,9 +482,10 @@ const std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex)
   } else {
     return "vr_controller_oculusgo.obj";
   }
+#elif defined(HVR)
+  return "vr_controller_focus.obj";
 #else
 //#error Platform controller not implemented
-return 0;
 #endif
 }
 

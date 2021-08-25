@@ -1,8 +1,14 @@
 #pragma once
 
-#include <string>
+#include <EGL/egl.h>
+#include "jni.h"
+#include <openxr/openxr.h>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 #include <openxr/openxr_reflection.h>
 #include "vrb/Matrix.h"
+
+#include <string>
 
 namespace crow {
 
@@ -102,6 +108,15 @@ inline XrResult MessageXrResult(XrResult res, const char* originator = nullptr, 
 #define CHECK_XRCMD(cmd) CheckXrResult(cmd, #cmd, FILE_AND_LINE);
 #define CHECK_XRRESULT(res, cmdStr) CheckXrResult(res, cmdStr, FILE_AND_LINE);
 #define XRCMD(cmd) MessageXrResult(cmd, #cmd, FILE_AND_LINE);
+
+#define RETURN_IF_XR_FAILED(cmd, ...)                                                                            \
+    {                                                                                                            \
+        auto res = cmd;                                                                                          \
+        if (XR_FAILED(res)) {                                                                                    \
+            VRB_ERROR("XrResult failure [%s] %s: %d", to_string(res), __FILE__, __LINE__);                       \
+            return res;                                                                                          \
+        }                                                                                                        \
+    }
 
 
 inline XrPosef XrPoseIdentity() {
