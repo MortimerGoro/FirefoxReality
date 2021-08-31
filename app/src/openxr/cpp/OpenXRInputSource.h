@@ -24,12 +24,13 @@ private:
     };
 
     XrResult Initialize();
-    XrResult CreateSpaceAction(XrAction, XrSpace&) const;
+    XrResult CreateActionSpace(XrAction, XrSpace&) const;
     XrResult CreateAction(XrActionType, const std::string& name, XrAction&) const;
     XrResult CreateButtonActions(OpenXRButtonType, const std::string& prefix, OpenXRButtonActions&) const;
     XrResult CreateBinding(const char* profilePath, XrAction, const std::string& bindingPath, SuggestedBindings&) const;
 
-    XrResult GetPose(XrSpace, XrSpace, const XrFrameState&, vrb::Matrix&, bool& isPositionEmulated) const;
+    XrResult GetPoseState(XrAction, XrSpace, XrSpace, const XrFrameState&, vrb::Matrix&, bool& isActive, bool& isPositionEmulated) const;
+
     struct OpenXRButtonState {
       bool clicked { false };
       bool touched { false };
@@ -40,8 +41,8 @@ private:
     XrResult GetActionState(XrAction, bool*) const;
     XrResult GetActionState(XrAction, float*) const;
     XrResult GetActionState(XrAction, XrVector2f*) const;
-
-    void UpdateButton()
+    ControllerDelegate::Button GetBrowserbutton(const OpenXRButton&) const;
+    std::optional<uint8_t> GetImmersiveButton(const OpenXRButton&) const;
 
     XrInstance mInstance { XR_NULL_HANDLE };
     XrSession mSession { XR_NULL_HANDLE };
@@ -59,15 +60,20 @@ private:
     XrSystemProperties mSystemProperties;
     std::vector<OpenXRInputMapping> mMappings;
     OpenXRInputMapping* mActiveMapping { XR_NULL_HANDLE };
+    bool selectActionStarted { false };
+    bool squeezeActionStarted { false };
+    std::vector<float> axesContainer;
 
 public:
     static OpenXRInputSourcePtr Create(XrInstance, XrSession, const XrSystemProperties&, OpenXRHandFlags, int index);
     ~OpenXRInputSource();
 
     XrResult SuggestBindings(SuggestedBindings&) const;
-    void Update(XrSpace, const XrFrameState&, ControllerDelegate& delegate);
+    void Update(const XrFrameState&, XrSpace, const vrb::Matrix& head, device::RenderMode, ControllerDelegate& delegate);
     XrActionSet ActionSet() const { return mActionSet; }
     XrResult UpdateInteractionProfile();
+    std::string ControllerModelName() const;
+    OpenXRInputMapping* GetActiveMapping() const { return mActiveMapping; }
 };
 
 } // namespace crow

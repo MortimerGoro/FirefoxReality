@@ -96,6 +96,7 @@ struct DeviceDelegateOpenXR::State {
   device::CPULevel minCPULevel = device::CPULevel::Normal;
   device::DeviceType deviceType = device::UnknownType;
   std::vector<const XrCompositionLayerBaseHeader*> frameEndLayers;
+  std::function<void()> controllersReadyCallback;
 
   void Initialize() {
     vrb::RenderContextPtr localContext = context.lock();
@@ -176,8 +177,6 @@ struct DeviceDelegateOpenXR::State {
     // Retrieve system info
     CHECK_XRCMD(xrGetSystemProperties(instance, system, &systemProperties))
     VRB_LOG("OpenXR system name: %s", systemProperties.systemName);
-
-    input = OpenXRInput::Create(instance, systemProperties);
   }
 
   // xrGet*GraphicsRequirementsKHR check must be called prior to xrCreateSession
@@ -471,7 +470,6 @@ struct DeviceDelegateOpenXR::State {
     }
 
     // Release input
-    input->Destroy();
     input = nullptr;
 
     // Shutdown OpenXR instance
@@ -582,6 +580,14 @@ DeviceDelegateOpenXR::GetControllerModelName(const int32_t aModelIndex) const {
   return m.input->GetControllerModelName(aModelIndex);
 }
 
+void
+DeviceDelegateOpenXR::OnControllersReady(const std::function<void()>& callback) {
+  if (m.input && m.input->AreControllersReady()) {
+    callback();
+    return;
+  }
+  m.controllersReadyCallback = callback;
+}
 
 void
 DeviceDelegateOpenXR::SetCPULevel(const device::CPULevel aLevel) {
@@ -611,6 +617,16 @@ DeviceDelegateOpenXR::ProcessEvents() {
         VRB_WARN("OpenXR XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING by %ld", event.lossTime);
         m.vrReady = false;
         return;
+      }
+      case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: {
+        if (m.input) {
+          m.input->UpdateInteractionProfile();
+          if (m.controllersReadyCallback && m.input->AreControllersReady()) {
+            m.controllersReadyCallback();
+            m.controllersReadyCallback = nullptr;
+          }
+        }
+        break;
       }
       case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
       default: {
@@ -753,7 +769,9 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
 #endif
 
   // Update controllers
-  m.input->Update(m.session, m.predictedDisplayTime, m.localSpace, head, m.renderMode, m.controller);
+  if (m.input && m.controller) {
+    m.input->Update(frameState, m.localSpace, head, m.renderMode, *m.controller);
+  }
 }
 
 void
@@ -1034,10 +1052,10 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
   CHECK(m.session != XR_NULL_HANDLE);
   VRB_LOG("OpenXR session created succesfully");
 
-  m.input->Initialize(m.session);
   m.UpdateSpaces();
   m.InitializeViews();
   m.InitializeImmersiveDisplay();
+  m.input = OpenXRInput::Create(m.instance, m.session, m.localSpace, m.systemProperties, *m.controller.get());
   ProcessEvents();
 
   // Initialize layers if needed

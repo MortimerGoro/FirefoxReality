@@ -363,6 +363,7 @@ ControllerContainer::SetButtonCount(const int32_t aControllerIndex, const uint32
 
 void
 ControllerContainer::SetButtonState(const int32_t aControllerIndex, const Button aWhichButton, const int32_t aImmersiveIndex, const bool aPressed, const bool aTouched, const float aImmersiveTrigger) {
+  VRB_ERROR("makelele SetButtonState: %d", aImmersiveIndex);
   assert(kControllerMaxButtonCount > aImmersiveIndex
          && "Button index must < kControllerMaxButtonCount.");
 

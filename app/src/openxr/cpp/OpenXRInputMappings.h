@@ -22,32 +22,31 @@ namespace crow {
         Iterator end() const { return Iterator(static_cast<int>(T::enum_count)); }
     };
 
-    constexpr const char* kPathLeftHand { "/user/hand/left/" };
-    constexpr const char* kPathRightHand { "/user/hand/right/" };
+    constexpr const char* kPathLeftHand { "/user/hand/left" };
+    constexpr const char* kPathRightHand { "/user/hand/right" };
     constexpr const char* kPathGripPose { "input/grip/pose" };
     constexpr const char* kPathAimPose { "input/aim/pose" };
-    constexpr const char* kPathTrigger = "input/trigger";
-    constexpr const char* kPathSqueeze = "input/squeeze";
-    constexpr const char* kPathThumbstick = "input/thumbstick";
-    constexpr const char* kPathThumbrest = "input/thumbrest";
-    constexpr const char* kPathTrackpad = "input/trackpad";
-    constexpr const char* kPathSelct = "/input/select";
-    constexpr const char* kPathMenu = "input/menu";
-    constexpr const char* kPathButtonA = "input/a";
-    constexpr const char* kPathButtonB = "input/b";
-    constexpr const char* kPathButtonX = "input/x";
-    constexpr const char* kPathButtonY = "input/y";
-    constexpr const char* kPathActionClick = "click";
-    constexpr const char* kPathActionTouch = "touch";
-    constexpr const char* kPathActionValue = "value";
-
+    constexpr const char* kPathTrigger { "input/trigger" };
+    constexpr const char* kPathSqueeze { "input/squeeze" };
+    constexpr const char* kPathThumbstick { "input/thumbstick" };
+    constexpr const char* kPathThumbrest { "input/thumbrest" };
+    constexpr const char* kPathTrackpad { "input/trackpad" };
+    constexpr const char* kPathSelect { "/input/select" };
+    constexpr const char* kPathMenu { "input/menu" };
+    constexpr const char* kPathButtonA { "input/a" };
+    constexpr const char* kPathButtonB { "input/b" };
+    constexpr const char* kPathButtonX { "input/x" };
+    constexpr const char* kPathButtonY { "input/y" };
+    constexpr const char* kPathActionClick { "click" };
+    constexpr const char* kPathActionTouch { "touch" };
+    constexpr const char* kPathActionValue { "value" };
 
     // OpenXR Button List
     enum class OpenXRButtonType {
         Trigger, Squeeze, Menu, Back, Trackpad, Thumbstick, Thumbrest, ButtonA, ButtonB, ButtonX, ButtonY, enum_count
     };
     constexpr std::array<const char*, 11> OpenXRButtonTypeNames[] = {
-            "trigger", "squeeze", "menu", "back", "trackpad", "thumbstick", "thumbrest", "a", "b", "x", "y"
+        "trigger", "squeeze", "menu", "back", "trackpad", "thumbstick", "thumbrest", "a", "b", "x", "y"
     };
     using OpenXRButtonTypes = EnumRange<OpenXRButtonType>;
 
@@ -59,11 +58,10 @@ namespace crow {
     };
 
     constexpr std::array<const char*, 2> OpenXRAxisTypeNames[] = {
-            "Trackpad", "Thumbstick"
+        "trackpad", "thumbstick"
     };
     using OpenXRAxisTypes = EnumRange<OpenXRAxisType>;
     static_assert(OpenXRAxisTypeNames->size() == static_cast<int>(OpenXRAxisType::enum_count), "sizes don't match");
-
 
     // Mapping Classes
     using OpenXRInputProfile = const char* const;
@@ -186,7 +184,7 @@ namespace crow {
 
     // Default fallback: https://github.com/immersive-web/webxr-input-profiles/blob/master/packages/registry/profiles/generic/generic-button.json
     const OpenXRInputMapping KHRSimple {
-            "/interaction_profiles/khr/simple_controlle",
+            "/interaction_profiles/khr/simple_controller",
             nullptr,
             "vr_controller_oculusgo.obj",
             "vr_controller_oculusgo.obj",
@@ -197,9 +195,12 @@ namespace crow {
             {}
     };
 
+  const std::array<OpenXRInputMapping, 1> OpenXRInputMappings {
+      OculusTouch2
+  };
 
-    const std::array<OpenXRInputMapping, 4> OpenXRInputMappings {
+    /*const std::array<OpenXRInputMapping, 4> OpenXRInputMappings {
         OculusTouch, OculusTouch2, Hvr3DOF, KHRSimple
-    };
+    };*/
 
 } // namespace crow
