@@ -3,6 +3,7 @@
 #include "vrb/Forward.h"
 #include "OpenXRInputMappings.h"
 #include "OpenXRHelpers.h"
+#include "ElbowModel.h"
 #include <optional>
 #include <unordered_map>
 
@@ -26,17 +27,17 @@ private:
     XrResult Initialize();
     XrResult CreateActionSpace(XrAction, XrSpace&) const;
     XrResult CreateAction(XrActionType, const std::string& name, XrAction&) const;
-    XrResult CreateButtonActions(OpenXRButtonType, const std::string& prefix, OpenXRButtonActions&) const;
+    XrResult CreateButtonActions(OpenXRButtonType, const std::string& prefix, int flags, OpenXRButtonActions&) const;
     XrResult CreateBinding(const char* profilePath, XrAction, const std::string& bindingPath, SuggestedBindings&) const;
 
-    XrResult GetPoseState(XrAction, XrSpace, XrSpace, const XrFrameState&, vrb::Matrix&, bool& isActive, bool& isPositionEmulated) const;
+    XrResult GetPoseState(XrAction, XrSpace, XrSpace, const XrFrameState&, bool& isActive, XrSpaceLocation&) const;
 
     struct OpenXRButtonState {
       bool clicked { false };
       bool touched { false };
       float value { 0 };
     };
-    std::optional<OpenXRButtonState> GetButtonState(OpenXRButtonType) const;
+    std::optional<OpenXRButtonState> GetButtonState(const OpenXRButton&) const;
     std::optional<XrVector2f> GetAxis(OpenXRAxisType) const;
     XrResult GetActionState(XrAction, bool*) const;
     XrResult GetActionState(XrAction, float*) const;
@@ -63,6 +64,7 @@ private:
     bool selectActionStarted { false };
     bool squeezeActionStarted { false };
     std::vector<float> axesContainer;
+    crow::ElbowModelPtr elbow;
 
 public:
     static OpenXRInputSourcePtr Create(XrInstance, XrSession, const XrSystemProperties&, OpenXRHandFlags, int index);

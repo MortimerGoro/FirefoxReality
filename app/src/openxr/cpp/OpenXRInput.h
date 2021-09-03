@@ -13,9 +13,13 @@ typedef std::shared_ptr<OpenXRInputSource> OpenXRInputSourcePtr;
 class OpenXRInput;
 typedef std::shared_ptr<OpenXRInput> OpenXRInputPtr;
 
+class OpenXRInputMapping;
+
 class OpenXRInput {
 private:
   OpenXRInput(XrInstance, XrSession, XrSystemProperties, ControllerDelegate& delegate);
+
+  OpenXRInputMapping* GetActiveInputMapping() const;
 
   XrInstance mInstance { XR_NULL_HANDLE };
   XrSession mSession { XR_NULL_HANDLE };

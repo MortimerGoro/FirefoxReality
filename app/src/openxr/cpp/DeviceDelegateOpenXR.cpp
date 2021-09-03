@@ -1055,8 +1055,12 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
   m.UpdateSpaces();
   m.InitializeViews();
   m.InitializeImmersiveDisplay();
-  m.input = OpenXRInput::Create(m.instance, m.session, m.localSpace, m.systemProperties, *m.controller.get());
+  m.input = OpenXRInput::Create(m.instance, m.session, m.systemProperties, *m.controller.get());
   ProcessEvents();
+  if (m.controllersReadyCallback && m.input && m.input->AreControllersReady()) {
+    m.controllersReadyCallback();
+    m.controllersReadyCallback = nullptr;
+  }
 
   // Initialize layers if needed
   vrb::RenderContextPtr context = m.context.lock();
@@ -1070,7 +1074,6 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
     m.equirectLayer->Init(m.jniEnv, m.session, context);
   }
 }
-
 
 void
 DeviceDelegateOpenXR::LeaveVR() {

@@ -83,31 +83,57 @@ XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, 
 }
 
 int32_t OpenXRInput::GetControllerModelCount() const {
-  return mInputSources.size();
+  auto mapping = GetActiveInputMapping();
+  if (mapping) {
+    int count = 0;
+    if (mapping->leftControllerModel) {
+      count++;
+    }
+    if (mapping->rightControllerModel) {
+      count++;
+    }
+    return count;
+  }
+  return 0;
 }
 
-std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex) const {
-  if (aModelIndex >=0 && aModelIndex < mInputSources.size()) {
-    return mInputSources[aModelIndex]->ControllerModelName();
+std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex) const
+{
+  auto mapping = GetActiveInputMapping();
+  if (!mapping) {
+    return { };
   }
-
-  return { };
+  if (mapping->leftControllerModel && mapping->rightControllerModel) {
+    return aModelIndex == 0 ? mapping->leftControllerModel : mapping->rightControllerModel;
+  } else if (mapping->leftControllerModel){
+    return mapping->leftControllerModel;
+  } else {
+    return mapping->rightControllerModel;
+  }
 }
 
 void OpenXRInput::UpdateInteractionProfile()
 {
+  VRB_ERROR("makelele UpdateInteractionProfile");
   for (auto& input : mInputSources) {
     input->UpdateInteractionProfile();
   }
 }
 
-bool OpenXRInput::AreControllersReady() const {
+bool OpenXRInput::AreControllersReady() const
+{
+  return GetActiveInputMapping() != nullptr;
+}
+
+OpenXRInputMapping* OpenXRInput::GetActiveInputMapping() const
+{
   for (auto& input : mInputSources) {
     if (input->GetActiveMapping() != nullptr) {
-      return true;
+      return input->GetActiveMapping();
     }
   }
-  return false;
+
+  return nullptr;
 }
 
 OpenXRInput::~OpenXRInput() {

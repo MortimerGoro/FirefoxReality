@@ -6,6 +6,8 @@ namespace crow {
 // Used when devices don't map the click value for triggers;
 const float kClickThreshold = 0.91f;
 
+const vrb::Vector kAverageHeight(0.0f, 1.7f, 0.0f);
+
 OpenXRInputSourcePtr OpenXRInputSource::Create(XrInstance instance, XrSession session, const XrSystemProperties& properties, OpenXRHandFlags handeness, int index)
 {
     OpenXRInputSourcePtr input(new OpenXRInputSource(instance, session, properties, handeness, index));
@@ -21,6 +23,7 @@ OpenXRInputSource::OpenXRInputSource(XrInstance instance, XrSession session, con
     , mHandeness(handeness)
     , mIndex(index)
 {
+  elbow = ElbowModel::Create();
 }
 
 OpenXRInputSource::~OpenXRInputSource()
@@ -35,6 +38,7 @@ OpenXRInputSource::~OpenXRInputSource()
 
 XrResult OpenXRInputSource::Initialize()
 {
+    VRB_ERROR("makelele system name: %s", mSystemProperties.systemName);
     mSubactionPathName = mHandeness == OpenXRHandFlags::Left ? kPathLeftHand : kPathRightHand;
     RETURN_IF_XR_FAILED(xrStringToPath(mInstance, mSubactionPathName.c_str(), &mSubactionPath));
 
@@ -49,15 +53,28 @@ XrResult OpenXRInputSource::Initialize()
 
     // Initialize pose actions and spaces.
     RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_POSE_INPUT, prefix + "_grip", mGripAction));
-    RETURN_IF_XR_FAILED(CreateActionSpace(mGripAction, mGripSpace));
     RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_POSE_INPUT, prefix + "_pointer", mPointerAction));
-    RETURN_IF_XR_FAILED(CreateActionSpace(mPointerAction, mPointerSpace));
+
+    // Filter mappings
+    for (auto& mapping: OpenXRInputMappings) {
+      if (mapping.systemFilter && strcmp(mapping.systemFilter, mSystemProperties.systemName) != 0) {
+        continue;
+      }
+      mMappings.push_back(mapping);
+    }
+
+    std::unordered_map<OpenXRButtonType, int> buttons;
+    for (auto& mapping: mMappings) {
+      for (auto& button: mapping.buttons) {
+        buttons[button.type] |= button.flags;
+      }
+    }
 
     // Initialize button actions.
-    for (auto buttonType : OpenXRButtonTypes()) {
+    for (auto& item: buttons) {
         OpenXRButtonActions actions;
-        CreateButtonActions(buttonType, prefix, actions);
-        mButtonActions.emplace(buttonType, actions);
+        CreateButtonActions(item.first, prefix, item.second, actions);
+        mButtonActions.emplace(item.first, actions);
     }
 
     // Initialize axes.
@@ -66,14 +83,6 @@ XrResult OpenXRInputSource::Initialize()
         std::string name = prefix + "_axis_" + OpenXRAxisTypeNames->at(static_cast<int>(axisType));
         RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_VECTOR2F_INPUT, name, axisAction));
         mAxisActions.emplace(axisType, axisAction);
-    }
-
-    // Filter mappings
-    for (auto& mapping: OpenXRInputMappings) {
-        if (mapping.systemFilter && strcmp(mapping.systemFilter, mSystemProperties.systemName) != 0) {
-            continue;
-        }
-        mMappings.push_back(mapping);
     }
 
     return XR_SUCCESS;
@@ -98,25 +107,28 @@ XrResult OpenXRInputSource::CreateAction(XrActionType actionType, const std::str
     std::strncpy(createInfo.actionName, name.c_str(), XR_MAX_ACTION_SET_NAME_SIZE - 1);
     std::strncpy(createInfo.localizedActionName, name.c_str(), XR_MAX_ACTION_SET_NAME_SIZE - 1);
 
-    auto res = xrCreateAction(mActionSet, &createInfo, &action);
-    VRB_ERROR("Create action %s: %p", name.c_str(), action);
-    return res;
+    return xrCreateAction(mActionSet, &createInfo, &action);
 }
 
-XrResult OpenXRInputSource::CreateButtonActions(OpenXRButtonType type, const std::string& prefix, OpenXRButtonActions& actions) const
+XrResult OpenXRInputSource::CreateButtonActions(OpenXRButtonType type, const std::string& prefix, int flags, OpenXRButtonActions& actions) const
 {
     auto name = prefix + "_button_" + OpenXRButtonTypeNames->at(static_cast<int>(type));
 
-    RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_BOOLEAN_INPUT, name + "_click", actions.click));
-    RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_BOOLEAN_INPUT, name + "_touch", actions.touch));
-    RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_FLOAT_INPUT, name + "_value", actions.value));
+    if (flags & OpenXRButtonFlags::Click) {
+      RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_BOOLEAN_INPUT, name + "_click", actions.click));
+    }
+    if (flags & OpenXRButtonFlags::Touch) {
+      RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_BOOLEAN_INPUT, name + "_touch", actions.touch));
+    }
+    if (flags & OpenXRButtonFlags::Value) {
+      RETURN_IF_XR_FAILED(CreateAction(XR_ACTION_TYPE_FLOAT_INPUT, name + "_value", actions.value));
+    }
 
     return XR_SUCCESS;
 }
 
 XrResult OpenXRInputSource::CreateBinding(const char* profilePath, XrAction action, const std::string& bindingPath, SuggestedBindings& bindings) const
 {
-    VRB_ERROR("makelele create binding: %s", bindingPath.c_str());
     assert(profilePath != XR_NULL_PATH);
     assert(action != XR_NULL_HANDLE);
     assert(!bindingPath.empty());
@@ -135,39 +147,30 @@ XrResult OpenXRInputSource::CreateBinding(const char* profilePath, XrAction acti
     return XR_SUCCESS;
 }
 
-XrResult OpenXRInputSource::GetPoseState(XrAction action, XrSpace space, XrSpace baseSpace, const XrFrameState& frameState, vrb::Matrix& pose, bool& isActive, bool& isPositionEmulated) const
+XrResult OpenXRInputSource::GetPoseState(XrAction action, XrSpace space, XrSpace baseSpace, const XrFrameState& frameState, bool& isActive, XrSpaceLocation& location) const
 {
     XrActionStateGetInfo getInfo {XR_TYPE_ACTION_STATE_GET_INFO };
     getInfo.subactionPath = mSubactionPath;
     getInfo.action = action;
-    XrActionStatePose poseState {XR_TYPE_ACTION_STATE_POSE };
+
+    XrActionStatePose poseState { XR_TYPE_ACTION_STATE_POSE };
     CHECK_XRCMD(xrGetActionStatePose(mSession, &getInfo, &poseState));
+
     isActive = poseState.isActive;
 
-    VRB_ERROR("makelele GetPose0: %d", poseState.isActive);
-
-    if (!isActive) {
+    if (!poseState.isActive) {
       return XR_SUCCESS;
     }
 
-    XrSpaceLocation location { XR_TYPE_SPACE_LOCATION };
-    VRB_ERROR("makelele GetPose1");
+    location = { XR_TYPE_SPACE_LOCATION };
     RETURN_IF_XR_FAILED(xrLocateSpace(space, baseSpace, frameState.predictedDisplayTime, &location));
-    VRB_ERROR("makelele GetPose2");
-
-    if (location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT)
-        pose = XrPoseToMatrix(location.pose);
-    isPositionEmulated = !(location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT);
-
-    bool makelele = location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;
-    VRB_ERROR("makelele GetPose3: %lu => %f %f %f %f", location.locationFlags,  location.pose.orientation.x, location.pose.orientation.y, location.pose.orientation.z, location.pose.orientation.w);
 
     return XR_SUCCESS;
 }
 
-std::optional<OpenXRInputSource::OpenXRButtonState> OpenXRInputSource::GetButtonState(OpenXRButtonType buttonType) const
+std::optional<OpenXRInputSource::OpenXRButtonState> OpenXRInputSource::GetButtonState(const OpenXRButton& button) const
 {
-    auto it = mButtonActions.find(buttonType);
+    auto it = mButtonActions.find(button.type);
     if (it == mButtonActions.end())
         return std::nullopt;
 
@@ -175,17 +178,18 @@ std::optional<OpenXRInputSource::OpenXRButtonState> OpenXRInputSource::GetButton
     bool hasValue = false;
     auto& actions = it->second;
 
-    auto queryActionState = [this, &hasValue](XrAction action, auto& value, auto defaultValue) {
-        if (action != XR_NULL_HANDLE && XR_SUCCEEDED(this->GetActionState(action, &value)))
+    auto queryActionState = [this, &hasValue](bool enabled, XrAction action, auto& value, auto defaultValue) {
+        if (enabled && action != XR_NULL_HANDLE && XR_SUCCEEDED(this->GetActionState(action, &value)))
             hasValue = true;
         else
             value = defaultValue;
     };
 
-    queryActionState(actions.click, result.clicked, false);
+    queryActionState(button.flags & OpenXRButtonFlags::Click, actions.click, result.clicked, false);
     bool clickedHasValue = hasValue;
-    queryActionState(actions.touch, result.touched, result.clicked);
-    queryActionState(actions.value, result.value, result.clicked ? 1.0 : 0.0);
+    queryActionState(button.flags & OpenXRButtonFlags::Touch, actions.touch, result.touched, result.clicked);
+    queryActionState(button.flags & OpenXRButtonFlags::Value, actions.value, result.value, result.clicked ? 1.0 : 0.0);
+
     if (!clickedHasValue && result.value > kClickThreshold) {
       result.clicked = true;
     }
@@ -214,6 +218,7 @@ XrResult OpenXRInputSource::GetActionState(XrAction action, bool* value) const
     XrActionStateBoolean state { XR_TYPE_ACTION_STATE_BOOLEAN };
     XrActionStateGetInfo info { XR_TYPE_ACTION_STATE_GET_INFO };
     info.action = action;
+    info.subactionPath = mSubactionPath;
 
     RETURN_IF_XR_FAILED(xrGetActionStateBoolean(mSession, &info, &state), mInstance);
     *value = state.currentState;
@@ -229,8 +234,9 @@ XrResult OpenXRInputSource::GetActionState(XrAction action, float* value) const
     XrActionStateFloat state { XR_TYPE_ACTION_STATE_FLOAT };
     XrActionStateGetInfo info { XR_TYPE_ACTION_STATE_GET_INFO };
     info.action = action;
+    info.subactionPath = mSubactionPath;
 
-    RETURN_IF_XR_FAILED(xrGetActionStateFloat(mSession, &info, &state), mInstance);
+    RETURN_IF_XR_FAILED(xrGetActionStateFloat(mSession, &info, &state));
     *value = state.currentState;
 
     return XR_SUCCESS;
@@ -244,8 +250,9 @@ XrResult OpenXRInputSource::GetActionState(XrAction action, XrVector2f* value) c
     XrActionStateVector2f state { XR_TYPE_ACTION_STATE_VECTOR2F };
     XrActionStateGetInfo info { XR_TYPE_ACTION_STATE_GET_INFO };
     info.action = action;
+    info.subactionPath = mSubactionPath;
 
-    RETURN_IF_XR_FAILED(xrGetActionStateVector2f(mSession, &info, &state), mInstance);
+    RETURN_IF_XR_FAILED(xrGetActionStateVector2f(mSession, &info, &state));
     *value = state.currentState;
 
     return XR_SUCCESS;
@@ -259,7 +266,7 @@ ControllerDelegate::Button OpenXRInputSource::GetBrowserbutton(const OpenXRButto
 
   switch (button.type) {
     case OpenXRButtonType::Trigger:
-      return ControllerDelegate::BUTTON_APP;
+      return ControllerDelegate::BUTTON_TRIGGER;
     case OpenXRButtonType::Squeeze:
       return ControllerDelegate::BUTTON_SQUEEZE;
     case OpenXRButtonType::Menu:
@@ -319,7 +326,6 @@ XrResult OpenXRInputSource::SuggestBindings(SuggestedBindings& bindings) const
 {
     for (auto& mapping : mMappings) {
         // Suggest binding for pose actions.
-        VRB_ERROR("makelele pose: %s", (mSubactionPathName + "/" + kPathGripPose).c_str());
         RETURN_IF_XR_FAILED(CreateBinding(mapping.path, mGripAction, mSubactionPathName + "/" + kPathGripPose, bindings));
         RETURN_IF_XR_FAILED(CreateBinding(mapping.path, mPointerAction, mSubactionPathName + "/" + kPathAimPose, bindings));
 
@@ -366,46 +372,86 @@ XrResult OpenXRInputSource::SuggestBindings(SuggestedBindings& bindings) const
 void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpace, const vrb::Matrix& head, device::RenderMode renderMode, ControllerDelegate& delegate)
 {
     if (!mActiveMapping) {
-        delegate.SetEnabled(mIndex, false);
-        return;
+      delegate.SetEnabled(mIndex, false);
+      return;
+    }
+
+    if ((mHandeness == OpenXRHandFlags::Left && !mActiveMapping->leftControllerModel) || (mHandeness == OpenXRHandFlags::Right && !mActiveMapping->rightControllerModel)) {
+      delegate.SetEnabled(mIndex, false);
+      return;
     }
 
     delegate.SetLeftHanded(mIndex, mHandeness == OpenXRHandFlags::Left);
     delegate.SetTargetRayMode(mIndex, device::TargetRayMode::TrackedPointer);
 
-    VRB_ERROR("makelele update pose begin");
+    // Spaces must be created here, it doesn't work if they are created in Initialize (probably a OpenXR SDK bug?)
+    if (mGripSpace == XR_NULL_HANDLE) {
+      CHECK_XRCMD(CreateActionSpace(mGripAction, mGripSpace));
+    }
+    if (mPointerSpace == XR_NULL_HANDLE) {
+      CHECK_XRCMD(CreateActionSpace(mPointerAction, mPointerSpace));
+    }
+
     // Pose transforms.
-    vrb::Matrix pointerOrigin;
     bool isPoseActive { false };
-    bool positionEmulated { false };
-    VRB_ERROR("makelele GetPose pointerSpace: %s", mHandeness == OpenXRHandFlags::Left ? "left" : "right");
-    if (XR_FAILED(GetPoseState(mPointerAction,  mPointerSpace, localSpace, frameState, pointerOrigin, isPoseActive, positionEmulated))) {
+    XrSpaceLocation poseLocation { XR_TYPE_SPACE_LOCATION };
+    if (XR_FAILED(GetPoseState(mPointerAction,  mPointerSpace, localSpace, frameState, isPoseActive, poseLocation))) {
         delegate.SetEnabled(mIndex, false);
         return;
     }
-    delegate.SetEnabled(mIndex, true);
-    delegate.SetTransform(mIndex, pointerOrigin);
 
-    vrb::Matrix gripPose;
-    VRB_ERROR("makelele GetPose gripPose");
-    CHECK_XRCMD(GetPoseState(mGripAction, mGripSpace, localSpace, frameState, gripPose, isPoseActive, positionEmulated));
+    if ((poseLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) == 0) {
+      delegate.SetEnabled(mIndex, false);
+      return;
+    }
+
+    delegate.SetEnabled(mIndex, true);
+
+    device::CapabilityFlags flags = device::Orientation;
+    vrb::Matrix poseMatrix = XrPoseToMatrix(poseLocation.pose);
+
+    if (poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) {
+      if (renderMode == device::RenderMode::StandAlone) {
+        poseMatrix.TranslateInPlace(kAverageHeight);
+      }
+      flags |= device::Position;
+    } else {
+#if HVR
+      auto hand = ElbowModel::HandEnum::Right; // Workaround for bug in the SDK
+#else
+      auto hand = mHandeness == OpenXRHandFlags::Left ? ElbowModel::HandEnum::Left : ElbowModel::HandEnum::Right;
+#endif
+      poseMatrix = elbow->GetTransform(hand, head, poseMatrix);
+      flags |= device::PositionEmulated;
+    }
+
+    delegate.SetTransform(mIndex, poseMatrix);
+
+    isPoseActive = false;
+    poseLocation = { XR_TYPE_SPACE_LOCATION };
+    CHECK_XRCMD(GetPoseState(mGripAction, mGripSpace, localSpace, frameState,  isPoseActive, poseLocation));
     if (isPoseActive) {
-        delegate.SetImmersiveBeamTransform(mIndex, gripPose);
+        delegate.SetImmersiveBeamTransform(mIndex, XrPoseToMatrix(poseLocation.pose));
+        flags |= device::GripSpacePosition;
     } else {
         delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());
     }
-    VRB_ERROR("makelele update pose end");
+
+    delegate.SetCapabilityFlags(mIndex, flags);
 
     // Buttons.
     int buttonCount { 0 };
     bool trackpadClicked { false };
     bool trackpadTouched { false };
+#if HVR
+    float trackpadValue { 0 };
+#endif
 
     for (auto& button: mActiveMapping->buttons) {
         if ((button.hand & mHandeness) == 0) {
             continue;
         }
-        auto state = GetButtonState(button.type);
+        auto state = GetButtonState(button);
         if (!state.has_value()) {
             VRB_ERROR("Cant read button type with path '%s'", button.path);
             continue;
@@ -415,7 +461,6 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         auto browserButton = GetBrowserbutton(button);
         auto immersiveButton = GetImmersiveButton(button);
         delegate.SetButtonState(mIndex, browserButton, immersiveButton.has_value() ? immersiveButton.value() : -1, state->clicked, state->touched, state->value);
-
 
         // Select action
         if (renderMode == device::RenderMode::Immersive && button.type == OpenXRButtonType::Trigger && state->clicked != selectActionStarted) {
@@ -441,17 +486,17 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         if (button.type == OpenXRButtonType::Trackpad) {
           trackpadClicked = state->clicked;
           trackpadTouched = state->touched;
+          trackpadValue = state->value;
         }
     }
     delegate.SetButtonCount(mIndex, buttonCount);
-
-    VRB_ERROR("makelele update buttons end: %d", buttonCount);
 
     // Axes
     // https://www.w3.org/TR/webxr-gamepads-module-1/#xr-standard-gamepad-mapping
     axesContainer = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     for (auto& axis: mActiveMapping->axes) {
+      VRB_ERROR("makelele axis1");
       if ((axis.hand & mHandeness) == 0) {
         continue;
       }
@@ -462,6 +507,10 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
       }
 
       if (axis.type == OpenXRAxisType::Trackpad) {
+#if HVR
+        state->x = 0;
+        state->y = 1.0f - trackpadValue;
+#endif
         axesContainer[device::kImmersiveAxisTouchpadX] = state->x;
         axesContainer[device::kImmersiveAxisTouchpadY] = state->y;
         if (trackpadTouched && !trackpadClicked) {
@@ -480,7 +529,6 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
       }
     }
     delegate.SetAxes(mIndex, axesContainer.data(), axesContainer.size());
-    VRB_ERROR("makelele update axes end %d", (int)axesContainer.size());
 }
 
 XrResult OpenXRInputSource::UpdateInteractionProfile()

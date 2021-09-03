@@ -169,9 +169,9 @@ namespace crow {
     // HVR 3DOF: https://github.com/immersive-web/webxr-input-profiles/blob/master/packages/registry/profiles/generic/generic-trigger-touchpad.json
     const OpenXRInputMapping Hvr3DOF {
             "/interaction_profiles/huawei/controller",
+            nullptr, //"G3HMD by Huawei",
+            "vr_controller_focus.obj",
             nullptr,
-            "vr_controller_focus.obj",
-            "vr_controller_focus.obj",
             std::vector<OpenXRInputProfile> { "generic-trigger-touchpad" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
@@ -195,12 +195,12 @@ namespace crow {
             {}
     };
 
-  const std::array<OpenXRInputMapping, 1> OpenXRInputMappings {
-      OculusTouch2
-  };
-
     /*const std::array<OpenXRInputMapping, 4> OpenXRInputMappings {
         OculusTouch, OculusTouch2, Hvr3DOF, KHRSimple
     };*/
+
+    const std::array<OpenXRInputMapping, 1> OpenXRInputMappings {
+        Hvr3DOF
+    };
 
 } // namespace crow
