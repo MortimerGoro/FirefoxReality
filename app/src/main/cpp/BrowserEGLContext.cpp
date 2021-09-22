@@ -6,7 +6,10 @@
 #include "BrowserEGLContext.h"
 #include "vrb/Logger.h"
 #include <EGL/eglext.h>
+
+#ifndef HVR
 #include <android_native_app_glue.h>
+#endif
 
 namespace crow {
 
@@ -22,6 +25,7 @@ BrowserEGLContext::Create() {
 
 bool
 BrowserEGLContext::Initialize(ANativeWindow *aNativeWindow) {
+  VRB_ERROR("makelele BrowserEGLContext1: %p", aNativeWindow);
   mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   if (eglInitialize(mDisplay, &mMajorVersion, &mMinorVersion) == EGL_FALSE) {
     VRB_ERROR("eglInitialize() failed: %s", ErrorToString(eglGetError()));
@@ -89,18 +93,21 @@ BrowserEGLContext::Initialize(ANativeWindow *aNativeWindow) {
     return false;
   }
 
-
-  //Reconfigure the ANativeWindow buffers to match, using EGL_NATIVE_VISUAL_ID.
   mNativeWindow = aNativeWindow;
+
+#ifndef HVR
+  //Reconfigure the ANativeWindow buffers to match, using EGL_NATIVE_VISUAL_ID.
   EGLint format;
   eglGetConfigAttrib(mDisplay, mConfig, EGL_NATIVE_VISUAL_ID, &format);
   ANativeWindow_setBuffersGeometry(aNativeWindow, 0, 0, format);
+#endif
 
   EGLint contextAttribs[] = {
           EGL_CONTEXT_CLIENT_VERSION, 3,
           EGL_NONE
   };
 
+  VRB_ERROR("makelele BrowserEGLContext2");
   mContext = eglCreateContext(mDisplay, mConfig, EGL_NO_CONTEXT, contextAttribs);
   if (mContext == EGL_NO_CONTEXT) {
     VRB_ERROR("eglCreateContext() failed: %s", ErrorToString(eglGetError()));
@@ -120,12 +127,16 @@ BrowserEGLContext::Initialize(ANativeWindow *aNativeWindow) {
   mSurface = eglCreatePbufferSurface(mDisplay, mConfig, surfaceAttribs);
 #endif
 
+  VRB_ERROR("makelele BrowserEGLContext3");
+
   if (mSurface == EGL_NO_SURFACE) {
     VRB_ERROR("eglCreateWindowSurface() failed: %s", ErrorToString(eglGetError()));
     eglDestroyContext(mDisplay, mContext);
     mContext = EGL_NO_CONTEXT;
     return false;
   }
+
+  VRB_ERROR("makelele BrowserEGLContext4");
 
   if (eglMakeCurrent(mDisplay, mSurface, mSurface, mContext) == EGL_FALSE) {
     VRB_ERROR("eglMakeCurrent() failed: %s", ErrorToString(eglGetError()));
@@ -134,6 +145,8 @@ BrowserEGLContext::Initialize(ANativeWindow *aNativeWindow) {
     mContext = EGL_NO_CONTEXT;
     return false;
   }
+
+  VRB_ERROR("makelele BrowserEGLContext5");
 
   return true;
 }

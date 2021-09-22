@@ -19,9 +19,15 @@ class BrowserEGLContext;
 class DeviceDelegateOpenXR;
 typedef std::shared_ptr<DeviceDelegateOpenXR> DeviceDelegateOpenXRPtr;
 
+struct JavaContext {
+  jobject activity { nullptr };
+  JavaVM* vm { nullptr };
+  JNIEnv* env { nullptr };
+};
+
 class DeviceDelegateOpenXR : public DeviceDelegate {
 public:
-  static DeviceDelegateOpenXRPtr Create(vrb::RenderContextPtr& aContext, android_app* aApp);
+  static DeviceDelegateOpenXRPtr Create(vrb::RenderContextPtr& aContext, JavaContext* aJavaContext);
   // DeviceDelegate interface
   device::DeviceType GetDeviceType() override;
   void SetRenderMode(const device::RenderMode aMode) override;
