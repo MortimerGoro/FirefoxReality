@@ -94,9 +94,6 @@ CommandCallback(android_app *aApp, int32_t aCmd) {
     // after calling android_app_exec_cmd it will be set to NULL.
     case APP_CMD_TERM_WINDOW:
       VRB_LOG("APP_CMD_TERM_WINDOW");
-      if (ctx->mDevice->IsInVRMode()) {
-         ctx->mDevice->LeaveVR();
-      }
       if (ctx->mEgl) {
         ctx->mEgl->UpdateNativeWindow(nullptr);
       }
@@ -168,6 +165,7 @@ android_main(android_app *aAppState) {
 
   // Main render loop
   while (true) {
+    //VRB_ERROR("makelele putakumea while true");
     int events;
     android_poll_source *pSource;
 
@@ -194,6 +192,7 @@ android_main(android_app *aAppState) {
         sAppContext->mEgl.reset();
         sAppContext->mDevice.reset();
         aAppState->activity->vm->DetachCurrentThread();
+        VRB_ERROR("makelele putakumea destroyRequested");
         return;
       }
     }
@@ -209,8 +208,14 @@ android_main(android_app *aAppState) {
     else {
       // OpenXR requires to wait for the XR_SESSION_STATE_READY to start presenting
       // We need to call ProcessEvents to make sure we receive the event.
+      VRB_ERROR("makelele putakumea ProcessEvents");
       sAppContext->mDevice->ProcessEvents();
+      if (sAppContext->mDevice->ShouldExitRenderLoop()) {
+        VRB_ERROR("makelele putakumea ShouldExitRenderLoop");
+        //return;
+      }
     }
+    //VRB_ERROR("makelele putakumea next");
 #endif
   }
 }

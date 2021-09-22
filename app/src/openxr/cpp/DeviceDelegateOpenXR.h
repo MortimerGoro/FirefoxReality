@@ -61,6 +61,7 @@ public:
   void OnDestroy();
   bool IsInVRMode() const;
   bool ExitApp();
+  bool ShouldExitRenderLoop() const;
 protected:
   struct State;
   DeviceDelegateOpenXR(State& aState);

@@ -57,8 +57,34 @@ public class PlatformActivity extends NativeActivity {
 
     @Override
     protected void onResume() {
+        Log.e(LOGTAG, "makelel putakumea onResume");
         setFullScreen();
         super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        Log.e(LOGTAG, "makelel putakumea onPause");
+        super.onPause();
+    }
+
+    @Override
+    protected void onStart() {
+        Log.e(LOGTAG, "makelel putakumea onStart");
+        super.onStart();
+    }
+
+    @Override
+    protected void onStop() {
+        Log.e(LOGTAG, "makelel putakumea onStop");
+        super.onStop();
+        System.exit(0);
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.e(LOGTAG, "makelel putakumea onDestroy");
+        super.onDestroy();
     }
 
     @Override

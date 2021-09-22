@@ -403,11 +403,11 @@ struct DeviceDelegateOpenXR::State {
   }
 
   void HandleSessionEvent(const XrEventDataSessionStateChanged& event) {
-    VRB_DEBUG("OpenXR XrEventDataSessionStateChanged: state %s->%s session=%p time=%ld",
+    VRB_ERROR("makelele putakumea OpenXR XrEventDataSessionStateChanged: state %s->%s session=%p time=%ld",
         to_string(sessionState), to_string(event.state), event.session, event.time);
     sessionState = event.state;
 
-    if (event.session != XR_NULL_HANDLE) {
+    if (event.session != XR_NULL_HANDLE && session != XR_NULL_HANDLE) {
       CHECK(session == event.session);
     }
 
@@ -426,6 +426,7 @@ struct DeviceDelegateOpenXR::State {
       }
       case XR_SESSION_STATE_EXITING: {
         vrReady = false;
+        //exit(0);
         break;
       }
       case XR_SESSION_STATE_LOSS_PENDING: {
@@ -595,7 +596,6 @@ DeviceDelegateOpenXR::SetCPULevel(const device::CPULevel aLevel) {
   m.UpdateClockLevels();
 };
 
-
 void
 DeviceDelegateOpenXR::ProcessEvents() {
   while (const XrEventDataBaseHeader* ev = m.PollEvent()) {
@@ -681,6 +681,8 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   CHECK_XRCMD(xrLocateSpace(m.viewSpace, m.localSpace, m.predictedDisplayTime, &location));
   m.predictedPose = location.pose;
 
+  VRB_ERROR("makelele head pose: %f %f %f", location.pose.position.x, location.pose.position.y, location.pose.position.z);
+
   vrb::Matrix head = XrPoseToMatrix(location.pose);
 
   if (m.renderMode == device::RenderMode::StandAlone) {
@@ -713,22 +715,6 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   XrViewState viewState{XR_TYPE_VIEW_STATE};
   uint32_t viewCapacityInput = (uint32_t) m.views.size();
   uint32_t viewCountOutput = 0;
-
-#ifdef HVR
-  {
-    XrViewLocateInfo offsetLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
-    offsetLocateInfo.viewConfigurationType = m.viewConfigType;
-    offsetLocateInfo.displayTime = m.predictedDisplayTime;
-    offsetLocateInfo.space = m.viewSpace;
-    CHECK_XRCMD(xrLocateViews(m.session, &offsetLocateInfo, &viewState, viewCapacityInput, &viewCountOutput, m.views.data()));
-    for (int i = 0; i < m.views.size(); ++i) {
-      const XrView &view = m.views[i];
-
-      vrb::Matrix eyeTransform = XrPoseToMatrix(view.pose);
-      m.cameras[i]->SetEyeTransform(eyeTransform);
-    }
-  };
-#endif
 
   XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
   viewLocateInfo.viewConfigurationType = m.viewConfigType;
@@ -1029,6 +1015,7 @@ DeviceDelegateOpenXR::DeleteLayer(const VRLayerPtr& aLayer) {
 
 void
 DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
+  VRB_ERROR("makelele putakumea EnterVR1");
   // Reset reorientation after Enter VR
   m.reorientMatrix = vrb::Matrix::Identity();
 
@@ -1037,6 +1024,8 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
     // Session already created and valid.
     return;
   }
+
+  VRB_ERROR("makelele putakumea EnterVR2");
 
   CHECK(m.instance != XR_NULL_HANDLE && m.system != XR_NULL_SYSTEM_ID);
   m.CheckGraphicsRequirements();
@@ -1077,7 +1066,13 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
 
 void
 DeviceDelegateOpenXR::LeaveVR() {
+  VRB_ERROR("makelele putakumea LeaveVR1");
   CHECK_MSG(!m.boundSwapChain, "Eye swapChain not released before LeaveVR");
+  if (m.session == XR_NULL_HANDLE) {
+    return;
+  }
+  VRB_ERROR("makelele putakumea LeaveVR2");
+  //xrRequestExitSession(m.session);
   ProcessEvents();
 }
 
@@ -1094,6 +1089,12 @@ DeviceDelegateOpenXR::IsInVRMode() const {
 bool
 DeviceDelegateOpenXR::ExitApp() {
   return true;
+}
+
+bool
+DeviceDelegateOpenXR::ShouldExitRenderLoop() const
+{
+  return m.sessionState == XR_SESSION_STATE_EXITING || m.sessionState == XR_SESSION_STATE_LOSS_PENDING;
 }
 
 DeviceDelegateOpenXR::DeviceDelegateOpenXR(State &aState) : m(aState) {}

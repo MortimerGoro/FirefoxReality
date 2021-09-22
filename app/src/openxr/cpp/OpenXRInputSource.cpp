@@ -38,7 +38,6 @@ OpenXRInputSource::~OpenXRInputSource()
 
 XrResult OpenXRInputSource::Initialize()
 {
-    VRB_ERROR("makelele system name: %s", mSystemProperties.systemName);
     mSubactionPathName = mHandeness == OpenXRHandFlags::Left ? kPathLeftHand : kPathRightHand;
     RETURN_IF_XR_FAILED(xrStringToPath(mInstance, mSubactionPathName.c_str(), &mSubactionPath));
 
@@ -410,10 +409,12 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     device::CapabilityFlags flags = device::Orientation;
     vrb::Matrix poseMatrix = XrPoseToMatrix(poseLocation.pose);
 
-    if (poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) {
+    if (poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
+#ifndef HVR
       if (renderMode == device::RenderMode::StandAlone) {
         poseMatrix.TranslateInPlace(kAverageHeight);
       }
+#endif
       flags |= device::Position;
     } else {
 #if HVR
@@ -457,6 +458,10 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
             continue;
         }
 
+        if (state->clicked) {
+          VRB_ERROR("makelele button clicked: %s", OpenXRButtonTypeNames->at(static_cast<int>(button.type)));
+        }
+
         buttonCount++;
         auto browserButton = GetBrowserbutton(button);
         auto immersiveButton = GetImmersiveButton(button);
@@ -496,7 +501,6 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     axesContainer = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     for (auto& axis: mActiveMapping->axes) {
-      VRB_ERROR("makelele axis1");
       if ((axis.hand & mHandeness) == 0) {
         continue;
       }
@@ -559,7 +563,9 @@ XrResult OpenXRInputSource::UpdateInteractionProfile()
 std::string OpenXRInputSource::ControllerModelName() const
 {
   if (mActiveMapping) {
-    return mHandeness == OpenXRHandFlags::Left ? mActiveMapping->leftControllerModel : mActiveMapping->rightControllerModel;
+    auto result = mHandeness == OpenXRHandFlags::Left ? mActiveMapping->leftControllerModel : mActiveMapping->rightControllerModel;
+    VRB_ERROR("makelele decadencia: %d %s", mHandeness, result);
+    return result;
   }
   return { };
 }

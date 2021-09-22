@@ -18,6 +18,7 @@ OpenXRInput::OpenXRInput(XrInstance instance, XrSession session, XrSystemPropert
     , mSession(session)
     , mSystemProperties(properties)
 {
+  VRB_ERROR("OpenXR systemName: %s", properties.systemName);
 }
 
 XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
@@ -99,17 +100,13 @@ int32_t OpenXRInput::GetControllerModelCount() const {
 
 std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex) const
 {
+  VRB_ERROR("makelele decadencia1");
   auto mapping = GetActiveInputMapping();
   if (!mapping) {
     return { };
   }
-  if (mapping->leftControllerModel && mapping->rightControllerModel) {
-    return aModelIndex == 0 ? mapping->leftControllerModel : mapping->rightControllerModel;
-  } else if (mapping->leftControllerModel){
-    return mapping->leftControllerModel;
-  } else {
-    return mapping->rightControllerModel;
-  }
+  VRB_ERROR("makelele decadencia2");
+  return mInputSources.at(aModelIndex)->ControllerModelName();
 }
 
 void OpenXRInput::UpdateInteractionProfile()
