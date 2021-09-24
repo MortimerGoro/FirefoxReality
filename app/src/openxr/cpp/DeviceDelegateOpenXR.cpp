@@ -112,8 +112,8 @@ struct DeviceDelegateOpenXR::State {
     memset(&loaderData, 0, sizeof(loaderData));
     loaderData.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
     loaderData.next = nullptr;
-    loaderData.applicationVM = app->activity->vm;
-    loaderData.applicationContext = jniEnv->NewGlobalRef(app->activity->clazz);
+    loaderData.applicationVM = javaContext->vm;
+    loaderData.applicationContext = javaContext->env->NewGlobalRef(javaContext->activity);
     initializeLoaderKHR(reinterpret_cast<XrLoaderInitInfoBaseHeaderKHR*>(&loaderData));
 #endif
 
@@ -645,7 +645,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   }
 
   // Fix brigthness issue.
-  glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+ // glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 
   CHECK(m.session != XR_NULL_HANDLE);
   CHECK(m.viewSpace != XR_NULL_HANDLE);

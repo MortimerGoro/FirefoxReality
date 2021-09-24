@@ -100,18 +100,16 @@ int32_t OpenXRInput::GetControllerModelCount() const {
 
 std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex) const
 {
-  VRB_ERROR("makelele decadencia1");
   auto mapping = GetActiveInputMapping();
   if (!mapping) {
     return { };
   }
-  VRB_ERROR("makelele decadencia2");
   return mInputSources.at(aModelIndex)->ControllerModelName();
 }
 
 void OpenXRInput::UpdateInteractionProfile()
 {
-  VRB_ERROR("makelele UpdateInteractionProfile");
+  VRB_LOG("UpdateInteractionProfile");
   for (auto& input : mInputSources) {
     input->UpdateInteractionProfile();
   }

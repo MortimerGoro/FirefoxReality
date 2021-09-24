@@ -464,16 +464,9 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
             continue;
         }
 
-        if (state->clicked) {
-          VRB_ERROR("makelele button clicked: %s", OpenXRButtonTypeNames->at(static_cast<int>(button.type)));
-        }
-
         buttonCount++;
         auto browserButton = GetBrowserbutton(button);
         auto immersiveButton = GetImmersiveButton(button);
-        if (browserButton == ControllerDelegate::BUTTON_APP) {
-          VRB_ERROR("makelele button BUTTON_APP: %d (index: %d)", state->clicked, mIndex);
-        }
         delegate.SetButtonState(mIndex, browserButton, immersiveButton.has_value() ? immersiveButton.value() : -1, state->clicked, state->touched, state->value);
 
         // Select action
@@ -500,7 +493,9 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         if (button.type == OpenXRButtonType::Trackpad) {
           trackpadClicked = state->clicked;
           trackpadTouched = state->touched;
+#if HVR
           trackpadValue = state->value;
+#endif
         }
     }
     delegate.SetButtonCount(mIndex, buttonCount);
@@ -573,7 +568,6 @@ std::string OpenXRInputSource::ControllerModelName() const
 {
   if (mActiveMapping) {
     auto result = mHandeness == OpenXRHandFlags::Left ? mActiveMapping->leftControllerModel : mActiveMapping->rightControllerModel;
-    VRB_ERROR("makelele decadencia: %d %s", mHandeness, result);
     return result;
   }
   return { };
