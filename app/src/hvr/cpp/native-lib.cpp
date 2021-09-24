@@ -80,11 +80,9 @@ struct AppContext {
 
       //LOGI("sessionRunning : %d",sessionRunning);
       if (mDevice->IsInVRMode() && mEgl && mEgl->IsSurfaceReady() && !BrowserWorld::Instance().IsPaused()) {
-        VRB_ERROR("makelele Draw");
         BrowserWorld::Instance().Draw();
       }
       else {
-        VRB_ERROR("makelele Throttle: %d %d %d", mDevice->IsInVRMode(), mEgl && mEgl->IsSurfaceReady(), !BrowserWorld::Instance().IsPaused());
         // Throttle loop since xrWaitFrame won't be called.
         timespec total_time;
         timespec left_time;

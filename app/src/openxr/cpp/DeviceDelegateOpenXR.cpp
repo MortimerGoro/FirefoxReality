@@ -398,7 +398,7 @@ struct DeviceDelegateOpenXR::State {
   }
 
   void HandleSessionEvent(const XrEventDataSessionStateChanged& event) {
-    VRB_ERROR("makelele putakumea OpenXR XrEventDataSessionStateChanged: state %s->%s session=%p time=%ld",
+    VRB_LOG("OpenXR XrEventDataSessionStateChanged: state %s->%s session=%p time=%ld",
         to_string(sessionState), to_string(event.state), event.session, event.time);
     sessionState = event.state;
 
@@ -675,8 +675,6 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   XrSpaceLocation location {XR_TYPE_SPACE_LOCATION};
   CHECK_XRCMD(xrLocateSpace(m.viewSpace, m.localSpace, m.predictedDisplayTime, &location));
   m.predictedPose = location.pose;
-
-  VRB_ERROR("makelele head pose: %f %f %f", location.pose.position.x, location.pose.position.y, location.pose.position.z);
 
   vrb::Matrix head = XrPoseToMatrix(location.pose);
 
@@ -1010,7 +1008,6 @@ DeviceDelegateOpenXR::DeleteLayer(const VRLayerPtr& aLayer) {
 
 void
 DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
-  VRB_ERROR("makelele putakumea EnterVR1");
   // Reset reorientation after Enter VR
   m.reorientMatrix = vrb::Matrix::Identity();
 
@@ -1019,8 +1016,6 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
     // Session already created and valid.
     return;
   }
-
-  VRB_ERROR("makelele putakumea EnterVR2");
 
   CHECK(m.instance != XR_NULL_HANDLE && m.system != XR_NULL_SYSTEM_ID);
   m.CheckGraphicsRequirements();
@@ -1061,13 +1056,13 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
 
 void
 DeviceDelegateOpenXR::LeaveVR() {
-  VRB_ERROR("makelele putakumea LeaveVR1");
   CHECK_MSG(!m.boundSwapChain, "Eye swapChain not released before LeaveVR");
   if (m.session == XR_NULL_HANDLE) {
     return;
   }
-  VRB_ERROR("makelele putakumea LeaveVR2");
-  //xrRequestExitSession(m.session);
+#ifdef HVR
+  xrRequestExitSession(m.session);
+#endif
   ProcessEvents();
 }
 

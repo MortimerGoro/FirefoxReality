@@ -197,7 +197,7 @@ namespace crow {
           { OpenXRButtonType::ButtonA, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
           { OpenXRButtonType::ButtonB, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right, ControllerDelegate::Button::BUTTON_APP },
           { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
-          { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, std::nullopt, true }
+          //{ OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, std::nullopt, true }
       },
       std::vector<OpenXRAxis> {
           { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },

@@ -63,6 +63,10 @@ public class DeviceType {
         return BuildConfig.FLAVOR_platform.toLowerCase().contains("wavevr");
     }
 
+    public static boolean isHVRBuild() {
+        return BuildConfig.FLAVOR_platform.toLowerCase().contains("hvr");
+    }
+
     public static boolean isPicoVR() {
         return BuildConfig.FLAVOR_platform.toLowerCase().contains("picovr");
     }

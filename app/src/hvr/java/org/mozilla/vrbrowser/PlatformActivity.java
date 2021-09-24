@@ -40,7 +40,7 @@ public class PlatformActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.i(TAG, "onCreate");
+        Log.i(TAG, "PlatformActivity onCreate");
         super.onCreate(savedInstanceState);
 
         mContext = this;
@@ -60,41 +60,54 @@ public class PlatformActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     protected void onDestroy() {
-        Log.i(TAG, "makelele onDestroy");
+        Log.i(TAG, "PlatformActivity onDestroy");
         super.onDestroy();
         nativeOnDestroy();
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        Log.i(TAG, "PlatformActivity onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.i(TAG, "PlatformActivity onStop");
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
+        Log.i(TAG, "PlatformActivity onPause");
         queueRunnable(this::nativeOnPause);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        Log.i(TAG, "PlatformActivity onResume");
         queueRunnable(this::nativeOnResume);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        Log.i(TAG, "makelele surfaceCreated");
+        Log.e(TAG, "makelele life surfaceCreated");
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        Log.i(TAG, "makelele surfaceChanged");
+        Log.i(TAG, "PlatformActivity surfaceChanged");
         queueRunnable(() -> nativeOnSurfaceChanged(holder.getSurface()));
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder)
     {
-        Log.i(TAG, "makelele surfaceDestroyed");
+        Log.i(TAG, "PlatformActivity surfaceDestroyed");
         queueRunnable(this::nativeOnSurfaceDestroyed);
     }
-
 
     protected boolean platformExit() {
         return false;

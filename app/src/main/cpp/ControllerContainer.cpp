@@ -241,14 +241,10 @@ ControllerContainer::CreateController(const int32_t aControllerIndex, const int3
       controller.transform->AddNode(m.models[aModelIndex]);
       controller.beamToggle = vrb::Toggle::Create(create);
       controller.beamToggle->ToggleAll(true);
-      if (aBeamTransform.IsIdentity()) {
-        controller.beamParent = controller.beamToggle;
-      } else {
-        vrb::TransformPtr beamTransform = Transform::Create(create);
-        beamTransform->SetTransform(aBeamTransform);
-        controller.beamParent = beamTransform;
-        controller.beamToggle->AddNode(beamTransform);
-      }
+      vrb::TransformPtr beamTransform = Transform::Create(create);
+      beamTransform->SetTransform(aBeamTransform);
+      controller.beamParent = beamTransform;
+      controller.beamToggle->AddNode(beamTransform);
       controller.transform->AddNode(controller.beamToggle);
       if (m.beamModel && controller.beamParent) {
         controller.beamParent->AddNode(m.beamModel);
@@ -281,6 +277,16 @@ ControllerContainer::SetImmersiveBeamTransform(const int32_t aControllerIndex,
     return;
   }
   m.list[aControllerIndex].immersiveBeamTransform = aImmersiveBeamTransform;
+}
+
+void
+ControllerContainer::SetBeamTransform(const int32_t aControllerIndex, const vrb::Matrix& aBeamTransform) {
+  if (!m.Contains(aControllerIndex)) {
+    return;
+  }
+  if (m.list[aControllerIndex].beamParent) {
+    m.list[aControllerIndex].beamParent->SetTransform(aBeamTransform);
+  }
 }
 
 void
@@ -363,7 +369,6 @@ ControllerContainer::SetButtonCount(const int32_t aControllerIndex, const uint32
 
 void
 ControllerContainer::SetButtonState(const int32_t aControllerIndex, const Button aWhichButton, const int32_t aImmersiveIndex, const bool aPressed, const bool aTouched, const float aImmersiveTrigger) {
-  VRB_ERROR("makelele SetButtonState: %d", aImmersiveIndex);
   assert(kControllerMaxButtonCount > aImmersiveIndex
          && "Button index must < kControllerMaxButtonCount.");
 

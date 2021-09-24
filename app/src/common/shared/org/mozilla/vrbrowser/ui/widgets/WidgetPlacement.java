@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import org.mozilla.vrbrowser.BuildConfig;
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.browser.SettingsStore;
+import org.mozilla.vrbrowser.utils.DeviceType;
 
 public class WidgetPlacement {
     static final float WORLD_DPI_RATIO = 2.0f/720.0f;
@@ -32,7 +33,7 @@ public class WidgetPlacement {
         density = aContext.getResources().getDisplayMetrics().density;
         // Default value
         cylinderMapRadius = Math.abs(WidgetPlacement.floatDimension(aContext, R.dimen.window_world_z));
-        if (BuildConfig.FLAVOR.contains("hvr")) {
+        if (DeviceType.isHVRBuild()) {
             textureScale = 1.0f;
         }
     }

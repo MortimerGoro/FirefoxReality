@@ -252,6 +252,7 @@ VRBrowser::HandleMoveEnd(jint aWidgetHandle, jfloat aX, jfloat aY, jfloat aZ, jf
 
 void
 VRBrowser::HandleBack() {
+  VRB_ERROR("makelele button HandleBack");
   if (!ValidateMethodID(sEnv, sActivity, sHandleBack, __FUNCTION__)) { return; }
   sEnv->CallVoidMethod(sActivity, sHandleBack);
   CheckJNIException(sEnv, __FUNCTION__);

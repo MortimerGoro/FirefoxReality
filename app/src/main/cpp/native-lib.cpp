@@ -165,7 +165,6 @@ android_main(android_app *aAppState) {
 
   // Main render loop
   while (true) {
-    //VRB_ERROR("makelele putakumea while true");
     int events;
     android_poll_source *pSource;
 
