@@ -23,9 +23,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.databinding.DataBindingUtil;
 
 import com.mozilla.speechlibrary.SpeechResultCallback;
-import com.mozilla.speechlibrary.SpeechService;
-import com.mozilla.speechlibrary.SpeechServiceSettings;
-import com.mozilla.speechlibrary.stt.STTResult;
 
 import org.mozilla.vrbrowser.R;
 import org.mozilla.vrbrowser.VRBrowserActivity;
@@ -34,6 +31,7 @@ import org.mozilla.vrbrowser.browser.SettingsStore;
 import org.mozilla.vrbrowser.browser.engine.EngineProvider;
 import org.mozilla.vrbrowser.browser.engine.SessionStore;
 import org.mozilla.vrbrowser.databinding.VoiceSearchDialogBinding;
+import org.mozilla.vrbrowser.speech.SpeechRecognizer;
 import org.mozilla.vrbrowser.ui.widgets.WidgetManagerDelegate;
 import org.mozilla.vrbrowser.ui.widgets.WidgetPlacement;
 import org.mozilla.vrbrowser.utils.DeviceType;
@@ -63,7 +61,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
     }
 
     private VoiceSearchDialogBinding mBinding;
-    private SpeechService mMozillaSpeechService;
+    private SpeechRecognizer mSpeechRecognizer;
     private VoiceSearchDelegate mDelegate;
     private ClipDrawable mVoiceInputClipDrawable;
     private AnimatedVectorDrawable mSearchingAnimation;
@@ -101,7 +99,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
             ViewUtils.forceAnimationOnUI(mSearchingAnimation);
         }
 
-        mMozillaSpeechService = mApplication.getSpeechService();
+        mSpeechRecognizer = mApplication.getSpeechRecognizer();
 
         mApplication.registerActivityLifecycleCallbacks(this);
     }
@@ -140,7 +138,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         mWidgetManager.removePermissionListener(this);
         mApplication.unregisterActivityLifecycleCallbacks(this);
 
-        mMozillaSpeechService.stop();
+        mSpeechRecognizer.stop();
 
         super.releaseWidget();
     }
@@ -166,9 +164,9 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         mWidgetPlacement.translationZ = 0;
     }
 
-    SpeechResultCallback mResultCallback = new SpeechResultCallback() {
+    SpeechRecognizer.Callback mResultCallback = new SpeechRecognizer.Callback() {
         @Override
-        public void onStartListen() {
+        public void onStartListening() {
             // Handle when the api successfully opened the microphone and started listening
             Log.d(LOGTAG, "===> START_LISTEN");
         }
@@ -193,11 +191,9 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         }
 
         @Override
-        public void onSTTResult(@Nullable STTResult result) {
+        public void onResult(String transcription, float confidence) {
             // When the api finished processing and returned a hypothesis
             Log.d(LOGTAG, "===> STT_RESULT");
-            String transcription = result.mTranscription;
-            float confidence = result.mConfidence;
             if (mDelegate != null) {
                 mDelegate.OnVoiceSearchResult(transcription, confidence);
             }
@@ -211,7 +207,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         }
 
         @Override
-        public void onError(@ErrorType int errorType, @Nullable String error) {
+        public void onError(int errorType, @Nullable String error) {
             Log.d(LOGTAG, "===> ERROR: " + error);
             setResultState(errorType);
             if (mDelegate != null) {
@@ -235,12 +231,12 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
 
             mIsSpeechRecognitionRunning = true;
 
-            SpeechServiceSettings.Builder builder = new SpeechServiceSettings.Builder()
-                    .withLanguage(locale)
-                    .withStoreSamples(storeData)
-                    .withStoreTranscriptions(storeData)
-                    .withProductTag(getContext().getString(R.string.voice_app_id));
-            mMozillaSpeechService.start(builder.build(),
+            SpeechRecognizer.Settings settings = new SpeechRecognizer.Settings();
+            settings.locale = locale;
+            settings.storeData = storeData;
+            settings.productTag = getContext().getString(R.string.voice_app_id);
+
+            mSpeechRecognizer.start(settings,
                     EngineProvider.INSTANCE.getDefaultGeckoWebExecutor(getContext()),
                     mResultCallback);
         }
@@ -248,7 +244,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
 
     public void stopVoiceSearch() {
         try {
-            mMozillaSpeechService.stop();
+            mSpeechRecognizer.stop();
 
         } catch (Exception e) {
             Log.d(LOGTAG, e.getLocalizedMessage() != null ? e.getLocalizedMessage() : "Unknown voice error");
@@ -281,7 +277,8 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
 
     @Override
     public void show(@ShowFlags int aShowFlags) {
-        if (SettingsStore.getInstance(getContext()).isSpeechDataCollectionEnabled() ||
+        if (!mSpeechRecognizer.shouldDisplayStoreDataPrompt() ||
+                SettingsStore.getInstance(getContext()).isSpeechDataCollectionEnabled() ||
                 SettingsStore.getInstance(getContext()).isSpeechDataCollectionReviewed()) {
             mWidgetPlacement.parentHandle = mWidgetManager.getFocusedWindow().getHandle();
             super.show(aShowFlags);
@@ -328,7 +325,7 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         mBinding.executePendingBindings();
     }
 
-    private void setResultState(@SpeechResultCallback.ErrorType int errorType) {
+    private void setResultState(int errorType) {
         stopVoiceSearch();
 
         postDelayed(() -> {

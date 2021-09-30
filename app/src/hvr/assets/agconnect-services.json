@@ -1,0 +1,37 @@
+{
+	"agcgw_all":{
+		"CN":"connect-drcn.hispace.hicloud.com",
+		"CN_back":"connect-drcn.dbankcloud.cn",
+		"DE":"connect-dre.hispace.hicloud.com",
+		"DE_back":"connect-dre.dbankcloud.cn",
+		"RU":"connect-drru.hispace.hicloud.com",
+		"RU_back":"connect-drru.dbankcloud.cn",
+		"SG":"connect-dra.hispace.hicloud.com",
+		"SG_back":"connect-dra.dbankcloud.cn"
+	},
+	"client":{
+		"cp_id":"5190034000026804879",
+		"product_id":"737518067793596612",
+		"client_id":"727546588758557888",
+		"client_secret":"[!0058F906D90C6DB172C6513B6A42B476251E744ADEEDE2D635A8E4CDD32E3CBD6BACD105AF60FE9FDC67F8C6DB6A9153EC9667C045AA80B4AC89C34ADAC1965CDA4E41CC18BA131D8236C2939C456083CB1A3B293699965204BC12A7DD885A3F52]",
+		"project_id":"737518067793596612",
+		"app_id":"104792907",
+		"api_key":"[!00C6EF31FD20C5C565D8144543970C8E8976939863514003DB4EABB9313E971934481502B46CD6A2A8FD49EC9313F27EAF27C097104AB38F9E49EA2E4A6FD7A46117FB61668F4DB7FACD3300198E2C21D96AF0788CACB75440D606F70BCE3ADAAC9F9ABC138FE949E5D656BAD9E0A389AD48EB6462DF72D51A78B3F23D20593ECA]",
+		"package_name":"org.mozilla.vrbrowser.hvr"
+	},
+	"oauth_client":{
+		"client_id":"104792907",
+		"client_type":30
+	},
+	"app_info":{
+		"app_id":"727547887096966016",
+		"package_name":"org.mozilla.vrbrowser.hvr"
+	},
+	"code":{
+		"code1":"090421A8964BD7CEE63AB4FFACEDEB6C",
+		"code2":"E7CA44D906E5D6A98744405540918EF7",
+		"code3":"996138D18081E88A3686EB4CCAF3BC93",
+		"code4":"0E1F83FC5C1A387A183FCF24F2CAC74B"
+	},
+	"configuration_version":"3.0"
+}

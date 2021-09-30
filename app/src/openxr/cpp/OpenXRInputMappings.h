@@ -223,7 +223,7 @@ namespace crow {
     };*/
 
     const std::array<OpenXRInputMapping, 1> OpenXRInputMappings {
-        OculusTouch2
+        Hvr6DOF
     };
 
 } // namespace crow
