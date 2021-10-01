@@ -70,7 +70,7 @@ struct AppContext {
 
     while (true) {
       if (mEgl) {
-        mEgl->MakeCurrent();
+        //mEgl->MakeCurrent();
       }
       mQueue->ProcessRunnables();
 

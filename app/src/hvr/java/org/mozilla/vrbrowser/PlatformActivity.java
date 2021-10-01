@@ -72,13 +72,7 @@ public class PlatformActivity extends Activity implements SurfaceHolder.Callback
 
     private void initializeAGConnect() {
         try {
-            //AGConnectOptionsBuilder builder = new AGConnectOptionsBuilder();
-
             String apiKey = "CwEAAAAAgq+iJRJ9T9s/hVyYDYAO9N2P3/zkhabwBW8to8vRkCuoh93Y1AumZPQ728q6Z5C0/QeZC/e1pB+HOuXe6ZfzAZa9deQ=";
-
-
-            //AGConnectInstance.initialize(this, builder);
-
             MLApplication.getInstance().setApiKey(apiKey);
 
             ((VRBrowserApplication)getApplicationContext()).setSpeechRecognizer(new HVRSpeechRecognizer(this));
