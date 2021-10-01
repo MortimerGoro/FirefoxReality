@@ -7,6 +7,7 @@ package org.mozilla.vrbrowser;
 
 import com.huawei.agconnect.AGConnectInstance;
 import com.huawei.agconnect.AGConnectOptionsBuilder;
+import com.huawei.hms.mlsdk.common.MLApplication;
 import com.huawei.hvr.LibUpdateClient;
 
 import android.app.Activity;
@@ -71,22 +72,16 @@ public class PlatformActivity extends Activity implements SurfaceHolder.Callback
 
     private void initializeAGConnect() {
         try {
-            AGConnectOptionsBuilder builder = new AGConnectOptionsBuilder();
-            InputStream in = getAssets().open("agconnect-services.json");
-            builder.setInputStream(in);
-            builder.setClientId("727546588758557888");
-            builder.setClientSecret("[!0058F906D90C6DB172C6513B6A42B476251E744ADEEDE2D635A8E4CDD32E3CBD6BACD105AF60FE9FDC67F8C6DB6A9153EC9667C045AA80B4AC89C34ADAC1965CDA4E41CC18BA131D8236C2939C456083CB1A3B293699965204BC12A7DD885A3F52]");
-            builder.setApiKey("[!00C6EF31FD20C5C565D8144543970C8E8976939863514003DB4EABB9313E971934481502B46CD6A2A8FD49EC9313F27EAF27C097104AB38F9E49EA2E4A6FD7A46117FB61668F4DB7FACD3300198E2C21D96AF0788CACB75440D606F70BCE3ADAAC9F9ABC138FE949E5D656BAD9E0A389AD48EB6462DF72D51A78B3F23D20593ECA]");
-            builder.setCPId("5190034000026804879");
-            builder.setProductId("737518067793596612");
-            builder.setAppId("104792907");
+            //AGConnectOptionsBuilder builder = new AGConnectOptionsBuilder();
 
-            AGConnectInstance.initialize(this, builder);
+            String apiKey = "CwEAAAAAgq+iJRJ9T9s/hVyYDYAO9N2P3/zkhabwBW8to8vRkCuoh93Y1AumZPQ728q6Z5C0/QeZC/e1pB+HOuXe6ZfzAZa9deQ=";
+
+
+            //AGConnectInstance.initialize(this, builder);
+
+            MLApplication.getInstance().setApiKey(apiKey);
+
             ((VRBrowserApplication)getApplicationContext()).setSpeechRecognizer(new HVRSpeechRecognizer(this));
-
-        } catch (IOException e) {
-            Log.e(TAG, "Place the agconnect-services.json file in hvr flavor assets in order to use the HVR SDK");
-            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }

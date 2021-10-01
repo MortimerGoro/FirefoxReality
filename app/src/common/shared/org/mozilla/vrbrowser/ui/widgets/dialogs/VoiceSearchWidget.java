@@ -51,10 +51,6 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
 
     private static final int VOICE_SEARCH_AUDIO_REQUEST_CODE = 7455;
 
-    private static int MAX_CLIPPING = 10000;
-    private static int MAX_DB = 130;
-    private static int MIN_DB = 50;
-
     public interface VoiceSearchDelegate {
         default void OnVoiceSearchResult(String transcription, float confidence) {};
         default void OnVoiceSearchError() {};
@@ -172,14 +168,9 @@ public class VoiceSearchWidget extends UIDialog implements WidgetManagerDelegate
         }
 
         @Override
-        public void onMicActivity(double fftsum) {
+        public void onMicActivity(int level) {
             // Captures the activity from the microphone
             Log.d(LOGTAG, "===> MIC_ACTIVITY");
-            double db = (double)fftsum * -1; // the higher the value, quieter the user/environment is
-            db = db == Double.POSITIVE_INFINITY ? MAX_DB : db;
-            int level = (int)(MAX_CLIPPING - (((db - MIN_DB) / (MAX_DB - MIN_DB)) * MAX_CLIPPING));
-            Log.d(LOGTAG, "===> db:      " + db);
-            Log.d(LOGTAG, "===> level    " + level);
             mVoiceInputClipDrawable.setLevel(level);
         }
 

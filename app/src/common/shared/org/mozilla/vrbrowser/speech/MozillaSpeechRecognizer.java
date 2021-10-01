@@ -1,6 +1,7 @@
 package org.mozilla.vrbrowser.speech;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -13,11 +14,16 @@ import com.mozilla.speechlibrary.stt.STTResult;
 import org.mozilla.geckoview.GeckoWebExecutor;
 import org.mozilla.vrbrowser.browser.engine.EngineProvider;
 import org.mozilla.vrbrowser.ui.widgets.dialogs.VoiceSearchWidget;
+import org.mozilla.vrbrowser.utils.SystemUtils;
 
 public class MozillaSpeechRecognizer implements SpeechRecognizer, SpeechResultCallback {
+    protected final String LOGTAG = SystemUtils.createLogtag(this.getClass());
     private SpeechService mMozillaSpeechService;
     private Context mContext;
     private @Nullable SpeechRecognizer.Callback mCallback;
+    private static int MAX_CLIPPING = 10000;
+    private static int MAX_DB = 130;
+    private static int MIN_DB = 50;
 
     public MozillaSpeechRecognizer(Context context) {
         mContext = context;
@@ -62,7 +68,12 @@ public class MozillaSpeechRecognizer implements SpeechRecognizer, SpeechResultCa
     @Override
     public void onMicActivity(double fftsum) {
         if (mCallback != null) {
-            mCallback.onMicActivity(fftsum);
+            double db = (double)fftsum * -1; // the higher the value, quieter the user/environment is
+            db = db == Double.POSITIVE_INFINITY ? MAX_DB : db;
+            int level = (int)(MAX_CLIPPING - (((db - MIN_DB) / (MAX_DB - MIN_DB)) * MAX_CLIPPING));
+            Log.d(LOGTAG, "===> db:      " + db);
+            Log.d(LOGTAG, "===> level    " + level);
+            mCallback.onMicActivity(level);
         }
     }
 

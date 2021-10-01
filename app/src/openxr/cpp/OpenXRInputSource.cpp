@@ -438,7 +438,12 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     if (isPoseActive) {
         auto beamTransform = XrPoseToMatrix(poseLocation.pose);
         delegate.SetImmersiveBeamTransform(mIndex, beamTransform);
-        delegate.SetBeamTransform(mIndex, vrb::Matrix::Translation(vrb::Vector(-0.011f, -0.007f, 0.0f)));
+#ifdef HVR
+        float direction = mHandeness == Left ? 1.0 : -1.0;
+#else
+        float direction = mHandeness == Left ? -1.0 : 1.0;
+#endif
+        delegate.SetBeamTransform(mIndex, vrb::Matrix::Translation(vrb::Vector(direction * 0.011f, -0.007f, 0.0f)));
         flags |= device::GripSpacePosition;
     } else {
         delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());

@@ -4,11 +4,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.huawei.hms.mlplugin.asr.MLAsrCaptureConstants;
 import com.huawei.hms.mlsdk.asr.MLAsrConstants;
 import com.huawei.hms.mlsdk.asr.MLAsrListener;
 import com.huawei.hms.mlsdk.asr.MLAsrRecognizer;
@@ -30,6 +30,7 @@ public class HVRSpeechRecognizer implements SpeechRecognizer, MLAsrListener {
         if (mRecognizer != null) {
             stop();
         }
+        mCallback = callback;
         mRecognizer = MLAsrRecognizer.createAsrRecognizer(mContext);
         mRecognizer.setAsrListener(this);
         Intent intent = new Intent(MLAsrConstants.ACTION_HMS_ASR_SPEECH);
@@ -77,10 +78,9 @@ public class HVRSpeechRecognizer implements SpeechRecognizer, MLAsrListener {
             if (mCallback == null) {
                 return;
             }
-
             String text = "";
-            if (bundle.containsKey(MLAsrCaptureConstants.ASR_RESULT)) {
-                text = bundle.getString(MLAsrCaptureConstants.ASR_RESULT);
+            if (bundle.containsKey(MLAsrRecognizer.RESULTS_RECOGNIZED)) {
+                text = bundle.getString(MLAsrRecognizer.RESULTS_RECOGNIZED);
             }
 
             mCallback.onResult(text, 1.0f);
@@ -115,15 +115,14 @@ public class HVRSpeechRecognizer implements SpeechRecognizer, MLAsrListener {
     // The user starts to speak, that is, the speech recognizer detects that the user starts to speak.
     @Override
     public void onStartingOfSpeech() {
-
     }
 
     // Return the original PCM stream and audio power to the user
     @Override
-    public void onVoiceDataReceived(byte[] bytes, float v, Bundle bundle) {
+    public void onVoiceDataReceived(byte[] bytes, float volume, Bundle bundle) {
         dispatch(() -> {
             if (mCallback != null) {
-                mCallback.onMicActivity(v);
+                mCallback.onMicActivity((int)volume);
             }
         });
     }
@@ -131,6 +130,5 @@ public class HVRSpeechRecognizer implements SpeechRecognizer, MLAsrListener {
     // Notify the app status change
     @Override
     public void onState(int state, Bundle bundle) {
-
     }
 }

@@ -185,17 +185,12 @@ namespace crow {
   const OpenXRInputMapping Hvr6DOF {
       "/interaction_profiles/huawei/controller",
       "Haliday: G3HMD by Huawei",
-      "vr_controller_oculusquest_left.obj",
       "vr_controller_oculusquest_right.obj",
+      "vr_controller_oculusquest_left.obj",
       std::vector<OpenXRInputProfile> { "oculus-touch-v3", "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
       std::vector<OpenXRButton> {
           { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
-          { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Value, OpenXRHandFlags::Both },
           { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
-          { OpenXRButtonType::ButtonX, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
-          { OpenXRButtonType::ButtonY, kPathTrackpad, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP },
-          { OpenXRButtonType::ButtonA, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
-          { OpenXRButtonType::ButtonB, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right, ControllerDelegate::Button::BUTTON_APP },
           { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
           //{ OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, std::nullopt, true }
       },

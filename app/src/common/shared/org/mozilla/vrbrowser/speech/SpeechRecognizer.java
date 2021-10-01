@@ -18,7 +18,7 @@ public interface SpeechRecognizer {
 
     interface Callback {
         void onStartListening();
-        void onMicActivity(double fftsum);
+        void onMicActivity(int level);
         void onDecoding();
         void onResult(String transcription, float confidence);
         void onNoVoice();

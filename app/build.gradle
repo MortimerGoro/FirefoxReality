@@ -7,6 +7,7 @@ apply from: "$project.rootDir/tools/gradle/versionCode.gradle"
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: "org.mozilla.telemetry.glean-gradle-plugin"
+apply plugin: 'com.huawei.agconnect'
 
 deps.telemetry.glean_unittests = "org.mozilla.telemetry:glean-forUnitTests:$project.ext.glean_version"
 
@@ -520,7 +521,6 @@ dependencies {
     hvrImplementation 'com.huawei.agconnect:agconnect-core-harmony:1.0.0.300'
     hvrImplementation 'com.huawei.agconnect:agconnect-core:1.6.0.300'
     hvrImplementation 'com.huawei.hms:ml-computer-voice-asr:3.1.0.300'
-    hvrImplementation 'com.huawei.hms:ml-computer-voice-asr-plugin:3.1.0.300'
 }
 
 if (findProject(':servo')) {
