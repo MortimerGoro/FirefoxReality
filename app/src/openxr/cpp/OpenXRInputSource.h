@@ -71,7 +71,7 @@ public:
     ~OpenXRInputSource();
 
     XrResult SuggestBindings(SuggestedBindings&) const;
-    void Update(const XrFrameState&, XrSpace, const vrb::Matrix& head, device::RenderMode, ControllerDelegate& delegate);
+    void Update(const XrFrameState&, XrSpace, const vrb::Matrix& head, float offsetY, device::RenderMode, ControllerDelegate& delegate);
     XrActionSet ActionSet() const { return mActionSet; }
     XrResult UpdateInteractionProfile();
     std::string ControllerModelName() const;

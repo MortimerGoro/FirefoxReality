@@ -495,32 +495,26 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
 
     const uint16_t flags = GetControllerCapabilityFlags(controller.deviceCapabilities);
     immersiveController.flags = static_cast<mozilla::gfx::ControllerCapabilityFlags>(flags);
-    const vrb::Matrix beamTransform = controller.transformMatrix.PostMultiply(controller.immersiveBeamTransform);
+
     if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Orientation)) {
       immersiveController.isOrientationValid = true;
 
-      vrb::Quaternion rotate;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
-        rotate = controller.transformMatrix;
-        rotate = rotate.Inverse();
-        memcpy(&(immersiveController.pose.orientation), rotate.Data(), sizeof(immersiveController.pose.orientation));
-      }
-      rotate.SetFromRotationMatrix(beamTransform);
-      rotate = rotate.Inverse();
+      vrb::Quaternion rotate(controller.transformMatrix.AfineInverse());
       memcpy(&(immersiveController.targetRayPose.orientation), rotate.Data(), sizeof(immersiveController.targetRayPose.orientation));
-    }
-    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position) ||
-      flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_PositionEmulated)) {
-      immersiveController.isPositionValid = true;
 
-      vrb::Vector position;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
-        position = controller.transformMatrix.GetTranslation();
-        memcpy(&(immersiveController.pose.position), position.Data(), sizeof(immersiveController.pose.position));
+      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position)) {
+        vrb::Vector position(controller.transformMatrix.GetTranslation());
+        memcpy(&(immersiveController.targetRayPose.position), position.Data(), sizeof(immersiveController.targetRayPose.orientation));
       }
-      position = beamTransform.GetTranslation();
-      memcpy(&(immersiveController.targetRayPose.position), position.Data(), sizeof(immersiveController.targetRayPose.position));
     }
+
+    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
+      vrb::Vector position(controller.immersiveBeamTransform.GetTranslation());
+      vrb::Quaternion rotate(controller.immersiveBeamTransform.AfineInverse());
+      memcpy(&(immersiveController.pose.position), position.Data(), sizeof(immersiveController.pose.orientation));
+      memcpy(&(immersiveController.pose.orientation), rotate.Data(), sizeof(immersiveController.pose.orientation));
+    }
+
     // TODO:: We should add TargetRayMode::_end in moz_external_vr.h to help this check.
     assert((uint8_t)mozilla::gfx::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
     immersiveController.targetRayMode = (mozilla::gfx::TargetRayMode)controller.targetRayMode;

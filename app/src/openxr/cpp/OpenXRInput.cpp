@@ -24,7 +24,7 @@ OpenXRInput::OpenXRInput(XrInstance instance, XrSession session, XrSystemPropert
 XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
 {
   std::array<OpenXRHandFlags, 2> hands {
-      OpenXRHandFlags::Left, OpenXRHandFlags::Right
+      OpenXRHandFlags::Right, OpenXRHandFlags::Left
   };
 
   int index = 0;
@@ -64,7 +64,7 @@ XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
   return XR_SUCCESS;
 }
 
-XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, const vrb::Matrix& head, device::RenderMode renderMode, ControllerDelegate& delegate)
+XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, const vrb::Matrix& head, float offsetY, device::RenderMode renderMode, ControllerDelegate& delegate)
 {
   std::vector<XrActiveActionSet> actionSets;
   for (auto& input : mInputSources) {
@@ -77,7 +77,7 @@ XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, 
   RETURN_IF_XR_FAILED(xrSyncActions(mSession, &syncInfo));
 
   for (auto& input : mInputSources) {
-    input->Update(frameState, baseSpace, head, renderMode, delegate);
+    input->Update(frameState, baseSpace, head, offsetY, renderMode, delegate);
   }
 
   return XR_SUCCESS;

@@ -14,7 +14,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.hardware.display.DisplayManager;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
+import android.media.AudioRecordingConfiguration;
+import android.media.MicrophoneInfo;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -25,6 +31,13 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import org.mozilla.vrbrowser.utils.StringUtils;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.List;
+
+import static android.media.AudioDeviceInfo.TYPE_USB_HEADSET;
+import static android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET;
 
 public class PlatformActivity extends Activity implements SurfaceHolder.Callback {
     public static final String TAG = "PlatformActivity";
@@ -78,6 +91,23 @@ public class PlatformActivity extends Activity implements SurfaceHolder.Callback
     }
 
     private void initializeVR() {
+        AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                for (AudioDeviceInfo info: audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
+                    if (info.getType() == TYPE_USB_HEADSET) {
+                        Log.e("VRB", "makelele micro ID: " + info.getId());
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        audioManager.setWiredHeadsetOn(true);
+        audioManager.setSpeakerphoneOn(false);
+        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         mView = new SurfaceView(this);
         setContentView(mView);

@@ -22,8 +22,14 @@ namespace crow {
         Iterator end() const { return Iterator(static_cast<int>(T::enum_count)); }
     };
 
+#ifdef HVR
+    // Workaround for SDK bug
+    constexpr const char* kPathLeftHand { "/user/hand/right" };
+    constexpr const char* kPathRightHand { "/user/hand/left" };
+#else
     constexpr const char* kPathLeftHand { "/user/hand/left" };
     constexpr const char* kPathRightHand { "/user/hand/right" };
+#endif
     constexpr const char* kPathGripPose { "input/grip/pose" };
     constexpr const char* kPathAimPose { "input/aim/pose" };
     constexpr const char* kPathTrigger { "input/trigger" };
@@ -54,11 +60,11 @@ namespace crow {
 
     // OpenXR Axis List
     enum class OpenXRAxisType {
-        Trackpad, Thumbstick, enum_count
+        Trackpad, Thumbstick, TrackpadX, TrackpadY, ThumbstickX, ThumbstickY, enum_count
     };
 
-    constexpr std::array<const char*, 2> OpenXRAxisTypeNames[] = {
-        "trackpad", "thumbstick"
+    constexpr std::array<const char*, 6> OpenXRAxisTypeNames[] = {
+        "trackpad", "thumbstick", "trackpad_x", "trackpad_y", "thumbstick_x", "thumbstick_y"
     };
     using OpenXRAxisTypes = EnumRange<OpenXRAxisType>;
     static_assert(OpenXRAxisTypeNames->size() == static_cast<int>(OpenXRAxisType::enum_count), "sizes don't match");
@@ -73,6 +79,7 @@ namespace crow {
         Value  = (1u << 2),
         ValueTouch = Touch | Value,
         ClickTouch = Click | Touch,
+        ClickValue = Click | Value,
         All  = Click | Touch | Value,
     };
 
@@ -110,6 +117,7 @@ namespace crow {
         const char* const systemFilter {nullptr };
         const char* const leftControllerModel { nullptr };
         const char* const rightControllerModel { nullptr };
+        device::DeviceType controllerType { device::OculusQuest };
         std::vector<OpenXRInputProfile> profiles;
         std::vector<OpenXRButton> buttons;
         std::vector<OpenXRAxis> axes;
@@ -125,6 +133,7 @@ namespace crow {
         "Oculus Quest",
         "vr_controller_oculusquest_left.obj",
         "vr_controller_oculusquest_right.obj",
+        device::OculusQuest,
         std::vector<OpenXRInputProfile> { "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
         std::vector<OpenXRButton> {
             { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
@@ -148,6 +157,7 @@ namespace crow {
             "Oculus Quest2",
             "vr_controller_oculusquest_left.obj",
             "vr_controller_oculusquest_right.obj",
+            device::OculusQuest,
             std::vector<OpenXRInputProfile> { "oculus-touch-v3", "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
@@ -169,17 +179,39 @@ namespace crow {
     const OpenXRInputMapping Hvr3DOF {
             "/interaction_profiles/huawei/controller",
             "Haliday: G3HMD by Huawei",
-            "vr_controller_focus.obj",
             nullptr,
+            "vr_controller_focus.obj",
+            device::ViveFocus,
             std::vector<OpenXRInputProfile> { "generic-trigger-touchpad" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
                     { OpenXRButtonType::Trackpad, kPathTrackpad, OpenXRButtonFlags::All, OpenXRHandFlags::Both },
             },
             std::vector<OpenXRAxis> {
-                    { OpenXRAxisType::Trackpad, kPathTrackpad,  OpenXRHandFlags::Both },
+                { OpenXRAxisType::TrackpadX, "input/trackpad/x",  OpenXRHandFlags::Both },
+                { OpenXRAxisType::TrackpadY, "input/trackpad/y",  OpenXRHandFlags::Both }
             }
     };
+
+  const OpenXRInputMapping Hvr6DOF {
+      "/interaction_profiles/huawei/controller",
+      "Haliday: G3HMD by Huawei",
+      "hvr_6dof_left.obj",
+      "hvr_6dof_right.obj",
+      device::OculusQuest,
+      std::vector<OpenXRInputProfile> { "oculus-touch-v3", "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
+      std::vector<OpenXRButton> {
+          { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ClickValue, OpenXRHandFlags::Both },
+          { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
+          { OpenXRButtonType::ButtonX, "input/ax", OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
+          { OpenXRButtonType::ButtonY, "input/by", OpenXRButtonFlags::Click, OpenXRHandFlags::Both, ControllerDelegate::Button::BUTTON_APP },
+          { OpenXRButtonType::Thumbrest, "input/grip", OpenXRButtonFlags::ClickValue, OpenXRHandFlags::Both },
+      },
+      std::vector<OpenXRAxis> {
+          { OpenXRAxisType::ThumbstickX, "input/trackpad/x",  OpenXRHandFlags::Both },
+          { OpenXRAxisType::ThumbstickY, "input/trackpad/y",  OpenXRHandFlags::Both }
+      }
+  };
 
     // Default fallback: https://github.com/immersive-web/webxr-input-profiles/blob/master/packages/registry/profiles/generic/generic-button.json
     const OpenXRInputMapping KHRSimple {
@@ -187,6 +219,7 @@ namespace crow {
             nullptr,
             "vr_controller_oculusgo.obj",
             "vr_controller_oculusgo.obj",
+            device::OculusGo,
             std::vector<OpenXRInputProfile> { "generic-button" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
@@ -194,8 +227,14 @@ namespace crow {
             {}
     };
 
+#if defined(HVR_6DOF)
+#define HVR_MAPPING Hvr6DOF
+#else
+#define HVR_MAPPING Hvr3DOF
+#endif
+
     const std::array<OpenXRInputMapping, 4> OpenXRInputMappings {
-        OculusTouch, OculusTouch2, Hvr3DOF, KHRSimple
+        OculusTouch, OculusTouch2, HVR_MAPPING, KHRSimple
     };
 
 } // namespace crow

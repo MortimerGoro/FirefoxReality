@@ -238,7 +238,7 @@ android {
             dimension "platform"
             externalNativeBuild {
                 cmake {
-                    cppFlags " -DHVR -DOPENXR -I" + file("src/openxr/cpp").absolutePath
+                    cppFlags " -DHVR -DHVR_6DOF -DOPENXR -I" + file("src/openxr/cpp").absolutePath
                     arguments "-DVR_SDK_LIB=hvr-lib", "-DHVR=ON", "-DOPENXR=ON"
                 }
             }
