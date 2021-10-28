@@ -6,8 +6,6 @@ namespace crow {
 // Used when devices don't map the click value for triggers;
 const float kClickThreshold = 0.91f;
 
-const vrb::Vector kAverageHeight(0.0f, 1.7f, 0.0f);
-
 OpenXRInputSourcePtr OpenXRInputSource::Create(XrInstance instance, XrSession session, const XrSystemProperties& properties, OpenXRHandFlags handeness, int index)
 {
     OpenXRInputSourcePtr input(new OpenXRInputSource(instance, session, properties, handeness, index));
@@ -191,6 +189,10 @@ std::optional<OpenXRInputSource::OpenXRButtonState> OpenXRInputSource::GetButton
 
     if (!clickedHasValue && result.value > kClickThreshold) {
       result.clicked = true;
+    }
+
+    if (result.clicked) {
+      VRB_DEBUG("openxr button clicked: %s", OpenXRButtonTypeNames->at((int) button.type));
     }
 
     return hasValue ? std::make_optional(result) : std::nullopt;
@@ -382,6 +384,7 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
 
     delegate.SetLeftHanded(mIndex, mHandeness == OpenXRHandFlags::Left);
     delegate.SetTargetRayMode(mIndex, device::TargetRayMode::TrackedPointer);
+    delegate.SetControllerType(mIndex, mActiveMapping->controllerType);
 
     // Spaces must be created here, it doesn't work if they are created in Initialize (probably a OpenXR SDK bug?)
     if (mGripSpace == XR_NULL_HANDLE) {
@@ -407,33 +410,48 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     delegate.SetEnabled(mIndex, true);
 
     device::CapabilityFlags flags = device::Orientation;
-    vrb::Matrix poseMatrix = XrPoseToMatrix(poseLocation.pose);
+    vrb::Matrix pointerTransform = XrPoseToMatrix(poseLocation.pose);
 
     if (poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
-#ifndef HVR
+#if !defined(HVR)
       if (renderMode == device::RenderMode::StandAlone) {
-        poseMatrix.TranslateInPlace(kAverageHeight);
+        pointerTransform.TranslateInPlace(kAverageHeight);
+      }
+#else
+      if (renderMode == device::RenderMode::StandAlone) {
+        // Workaround for bug: Controllers are using real height instead of local space.
+        pointerTransform.TranslateInPlace(vrb::Vector(0.0f, 0.15f, 0.0f));
+      } else {
+        // Workaround for WebXR due to the same problem
+        pointerTransform.TranslateInPlace(vrb::Vector(0.0f, -1.5f, 0.0f));
       }
 #endif
       flags |= device::Position;
     } else {
-#if HVR
-      auto hand = ElbowModel::HandEnum::Right; // Workaround for bug in the SDK
+#if defined(HVR)
+      // Workaround for the inverted right/left controllers
+      auto hand = ElbowModel::HandEnum::Right;
 #else
       auto hand = mHandeness == OpenXRHandFlags::Left ? ElbowModel::HandEnum::Left : ElbowModel::HandEnum::Right;
 #endif
-      poseMatrix = elbow->GetTransform(hand, head, poseMatrix);
+      pointerTransform = elbow->GetTransform(hand, head, pointerTransform);
       flags |= device::PositionEmulated;
     }
 
-    delegate.SetTransform(mIndex, poseMatrix);
+    delegate.SetTransform(mIndex, pointerTransform);
 
     isPoseActive = false;
     poseLocation = { XR_TYPE_SPACE_LOCATION };
     CHECK_XRCMD(GetPoseState(mGripAction, mGripSpace, localSpace, frameState,  isPoseActive, poseLocation));
     if (isPoseActive) {
-        delegate.SetImmersiveBeamTransform(mIndex, XrPoseToMatrix(poseLocation.pose));
+        // auto gripTransform = XrPoseToMatrix(poseLocation.pose);
+        // TODO: Gecko is doing wrong math with the beam transform. Pass a indentity for now.
+        delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());
         flags |= device::GripSpacePosition;
+        // TODO: Use grip transform when the new 3D models lands (hardcoded Oculus Quest 1 controllers now)
+        float multiplier = mHandeness == OpenXRHandFlags::Left ? -1.0f : 1.0f;
+        delegate.SetBeamTransform(mIndex, vrb::Matrix::Translation(vrb::Vector(0.011f * multiplier, -0.007f, 0.0f)));
+
     } else {
         delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());
     }

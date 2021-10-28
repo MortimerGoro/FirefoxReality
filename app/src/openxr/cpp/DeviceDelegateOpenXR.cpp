@@ -42,8 +42,6 @@
 
 namespace crow {
 
-const vrb::Vector kAverageHeight(0.0f, 1.7f, 0.0f);
-
 struct DeviceDelegateOpenXR::State {
   vrb::RenderContextWeak context;
   JavaContext* javaContext = nullptr;
@@ -60,6 +58,7 @@ struct DeviceDelegateOpenXR::State {
   XrViewConfigurationType viewConfigType{XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO};
   std::vector<XrViewConfigurationView> viewConfig;
   std::vector<XrView> views;
+  std::vector<XrView> prevViews;
   std::vector<OpenXRSwapChainPtr> eyeSwapChains;
   OpenXRSwapChainPtr boundSwapChain;
   OpenXRSwapChainPtr previousBoundSwapchain;
@@ -325,7 +324,7 @@ struct DeviceDelegateOpenXR::State {
     }
 
     // Optionally create a stageSpace to be used in WebXR room scale apps.
-    if (stageSpace == XR_NULL_HANDLE && supportsSpace(XR_REFERENCE_SPACE_TYPE_LOCAL)) {
+    if (stageSpace == XR_NULL_HANDLE && supportsSpace(XR_REFERENCE_SPACE_TYPE_STAGE)) {
       XrReferenceSpaceCreateInfo create{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
       create.poseInReferenceSpace = XrPoseIdentity();
       create.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
@@ -661,6 +660,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   if (aPrediction == FramePrediction::ONE_FRAME_AHEAD) {
     m.prevPredictedDisplayTime = m.predictedDisplayTime;
     m.prevPredictedPose = m.predictedPose;
+    m.prevViews = m.views;
     m.predictedDisplayTime = frameState.predictedDisplayTime + frameState.predictedDisplayPeriod;
   } else {
     m.predictedDisplayTime = frameState.predictedDisplayTime;
@@ -670,6 +670,9 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   XrSpaceLocation location {XR_TYPE_SPACE_LOCATION};
   CHECK_XRCMD(xrLocateSpace(m.viewSpace, m.localSpace, m.predictedDisplayTime, &location));
   m.predictedPose = location.pose;
+
+  XrSpaceLocation mortimer {XR_TYPE_SPACE_LOCATION};
+  CHECK_XRCMD(xrLocateSpace(m.viewSpace, m.stageSpace, m.predictedDisplayTime, &mortimer));
 
   vrb::Matrix head = XrPoseToMatrix(location.pose);
 
@@ -696,6 +699,10 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
       xrLocateSpace(m.localSpace, m.stageSpace, m.predictedDisplayTime, &stageLocation);
       vrb::Matrix transform = XrPoseToMatrix(stageLocation.pose);
       m.immersiveDisplay->SetSittingToStandingTransform(transform);
+#if HVR
+      // Workaround for empty stage transform bug in HVR
+      m.immersiveDisplay->SetSittingToStandingTransform(vrb::Matrix::Translation(vrb::Vector(0.0f, 1.0f, 0.0f)));
+#endif
     }
   }
 
@@ -704,18 +711,34 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
   uint32_t viewCapacityInput = (uint32_t) m.views.size();
   uint32_t viewCountOutput = 0;
 
+  if (m.immersiveDisplay) {
+    // Eye transform
+    XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+    viewLocateInfo.viewConfigurationType = m.viewConfigType;
+    viewLocateInfo.displayTime = m.predictedDisplayTime;
+    viewLocateInfo.space = m.viewSpace;
+    CHECK_XRCMD(xrLocateViews(m.session, &viewLocateInfo, &viewState, viewCapacityInput, &viewCountOutput, m.views.data()));
+    for (int i = 0; i < m.views.size(); ++i) {
+      const XrView &view = m.views[i];
+      const device::Eye eye = i == 0 ? device::Eye::Left : device::Eye::Right;
+      m.immersiveDisplay->SetEyeOffset(eye, view.pose.position.x, view.pose.position.y, view.pose.position.z);
+    }
+  }
+
   XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
   viewLocateInfo.viewConfigurationType = m.viewConfigType;
   viewLocateInfo.displayTime = m.predictedDisplayTime;
-  viewLocateInfo.space = m.viewSpace;
+  viewLocateInfo.space = m.localSpace;
   CHECK_XRCMD(xrLocateViews(m.session, &viewLocateInfo, &viewState, viewCapacityInput, &viewCountOutput, m.views.data()));
 
   for (int i = 0; i < m.views.size(); ++i) {
     const XrView& view = m.views[i];
 
-    vrb::Matrix eyeTransform = XrPoseToMatrix(view.pose);
-    m.cameras[i]->SetEyeTransform(eyeTransform);
-
+    vrb::Matrix headEyeTransform = XrPoseToMatrix(view.pose);
+    if (m.renderMode == device::RenderMode::StandAlone) {
+      headEyeTransform.TranslateInPlace(kAverageHeight);
+    }
+    m.cameras[i]->SetHeadEyeTransform(headEyeTransform);
 
     vrb::Matrix perspective = vrb::Matrix::PerspectiveMatrix(fabsf(view.fov.angleLeft), view.fov.angleRight,
         view.fov.angleUp, fabsf(view.fov.angleDown), m.near, m.far);
@@ -728,19 +751,8 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
       };
       m.immersiveDisplay->SetFieldOfView(eye, toDegrees(fabsf(view.fov.angleLeft)), toDegrees(view.fov.angleRight),
                                          toDegrees(view.fov.angleUp), toDegrees(fabsf(view.fov.angleDown)));
-      vrb::Vector offset = eyeTransform.GetTranslation();
-      m.immersiveDisplay->SetEyeOffset(eye, offset.x(), offset.y(), offset.z());
     }
   }
-
-#ifdef HVR
-  // HVR requires to use localSpace with projectionLayer
-  viewLocateInfo = { XR_TYPE_VIEW_LOCATE_INFO };
-  viewLocateInfo.viewConfigurationType = m.viewConfigType;
-  viewLocateInfo.displayTime = m.predictedDisplayTime;
-  viewLocateInfo.space = m.localSpace;
-  CHECK_XRCMD(xrLocateViews(m.session, &viewLocateInfo, &viewState, viewCapacityInput, &viewCountOutput, m.views.data()));
-#endif
 
   // Update controllers
   if (m.input && m.controller) {
@@ -787,6 +799,7 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   const bool frameAhead = m.framePrediction == FramePrediction::ONE_FRAME_AHEAD;
   const XrPosef& predictedPose = frameAhead ? m.prevPredictedPose : m.predictedPose;
   const XrTime displayTime = frameAhead ? m.prevPredictedDisplayTime : m.predictedDisplayTime;
+  auto& targetViews = frameAhead ? m.prevViews : m.views;
 
   std::vector<const XrCompositionLayerBaseHeader*>& layers = m.frameEndLayers;
   layers.clear();
@@ -828,22 +841,18 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   // Add main eye buffer layer
   XrCompositionLayerProjection projectionLayer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
   std::vector<XrCompositionLayerProjectionView> projectionLayerViews;
-  projectionLayerViews.resize(m.views.size());
+  projectionLayerViews.resize(targetViews.size());
   projectionLayer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
-  for (int i = 0; i < m.views.size(); ++i) {
+  for (int i = 0; i < targetViews.size(); ++i) {
     const OpenXRSwapChainPtr& viewSwapChain =  m.eyeSwapChains[i];
     projectionLayerViews[i] = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
-    projectionLayerViews[i].pose = m.views[i].pose;
-    projectionLayerViews[i].fov = m.views[i].fov;
+    projectionLayerViews[i].pose = targetViews[i].pose;
+    projectionLayerViews[i].fov = targetViews[i].fov;
     projectionLayerViews[i].subImage.swapchain = viewSwapChain->SwapChain();
     projectionLayerViews[i].subImage.imageRect.offset = {0, 0};
     projectionLayerViews[i].subImage.imageRect.extent = {viewSwapChain->Width(), viewSwapChain->Height()};
   }
-#ifdef HVR
   projectionLayer.space = m.localSpace;
-#else
-  projectionLayer.space = m.viewSpace;
-#endif
   projectionLayer.viewCount = (uint32_t)projectionLayerViews.size();
   projectionLayer.views = projectionLayerViews.data();
   layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&projectionLayer));
