@@ -65,8 +65,8 @@ struct ControllerContainer::State {
   }
 
   void updatePointerColor(Controller& aController) {
-    if (aController.beamParent && aController.beamParent->GetNodeCount() > 0) {
-      GeometryPtr geometry = std::dynamic_pointer_cast<vrb::Geometry>(aController.beamParent->GetNode(0));
+    if (aController.beamTransform && aController.beamTransform->GetNodeCount() > 0) {
+      GeometryPtr geometry = std::dynamic_pointer_cast<vrb::Geometry>(aController.beamTransform->GetNode(0));
       if (geometry) {
         geometry->GetRenderState()->SetMaterial(pointerColor, pointerColor, vrb::Color(0.0f, 0.0f, 0.0f), 0.0f);
       }
@@ -78,8 +78,11 @@ struct ControllerContainer::State {
 
   void
   SetVisible(Controller& controller, const bool aVisible) {
-    if (controller.transform && visible) {
-      root->ToggleChild(*controller.transform, aVisible);
+    if (controller.gripTransform && visible) {
+      root->ToggleChild(*controller.gripTransform, aVisible);
+    }
+    if (controller.beamToggle && visible) {
+      root->ToggleChild(*controller.beamToggle, aVisible);
     }
     if (controller.pointer && !aVisible) {
       controller.pointer->SetVisible(false);
@@ -180,8 +183,8 @@ ControllerContainer::InitializeBeam() {
 
   m.beamModel = std::move(geometry);
   for (Controller& controller: m.list) {
-    if (controller.beamParent) {
-      controller.beamParent->AddNode(m.beamModel);
+    if (controller.beamTransform) {
+      controller.beamTransform->AddNode(m.beamModel);
     }
   }
 }
@@ -212,11 +215,6 @@ ControllerContainer::GetControllerCount() {
 
 void
 ControllerContainer::CreateController(const int32_t aControllerIndex, const int32_t aModelIndex, const std::string& aImmersiveName) {
-  CreateController(aControllerIndex, aModelIndex, aImmersiveName, vrb::Matrix::Identity());
-}
-
-void
-ControllerContainer::CreateController(const int32_t aControllerIndex, const int32_t aModelIndex, const std::string& aImmersiveName, const vrb::Matrix& aBeamTransform) {
   if ((size_t)aControllerIndex >= m.list.size()) {
     m.list.resize((size_t)aControllerIndex + 1);
   }
@@ -225,29 +223,24 @@ ControllerContainer::CreateController(const int32_t aControllerIndex, const int3
   controller.Reset();
   controller.index = aControllerIndex;
   controller.immersiveName = aImmersiveName;
-  controller.beamTransformMatrix = aBeamTransform;
-  controller.immersiveBeamTransform = aBeamTransform;
   if (aModelIndex < 0) {
     return;
   }
   m.SetUpModelsGroup(aModelIndex);
   CreationContextPtr create = m.context.lock();
-  controller.transform = Transform::Create(create);
+  controller.gripTransform = Transform::Create(create);
   controller.pointer = Pointer::Create(create);
   controller.pointer->SetVisible(true);
 
   if (aControllerIndex != m.gazeIndex) {
     if ((m.models.size() >= aModelIndex) && m.models[aModelIndex]) {
-      controller.transform->AddNode(m.models[aModelIndex]);
+      controller.gripTransform->AddNode(m.models[aModelIndex]);
       controller.beamToggle = vrb::Toggle::Create(create);
       controller.beamToggle->ToggleAll(true);
-      vrb::TransformPtr beamTransform = Transform::Create(create);
-      beamTransform->SetTransform(aBeamTransform);
-      controller.beamParent = beamTransform;
-      controller.beamToggle->AddNode(beamTransform);
-      controller.transform->AddNode(controller.beamToggle);
-      if (m.beamModel && controller.beamParent) {
-        controller.beamParent->AddNode(m.beamModel);
+      controller.beamTransform = Transform::Create(create);
+      controller.beamToggle->AddNode(controller.beamTransform);
+      if (m.beamModel) {
+        controller.beamTransform->AddNode(m.beamModel);
       }
 
       // If the model is not yet loaded we trigger the load task
@@ -261,8 +254,10 @@ ControllerContainer::CreateController(const int32_t aControllerIndex, const int3
   }
 
   if (m.root) {
-    m.root->AddNode(controller.transform);
-    m.root->ToggleChild(*controller.transform, false);
+    m.root->AddNode(controller.gripTransform);
+    m.root->AddNode(controller.beamToggle);
+    m.root->ToggleChild(*controller.gripTransform, false);
+    m.root->ToggleChild(*controller.beamToggle, false);
   }
   if (m.pointerContainer) {
     m.pointerContainer->AddNode(controller.pointer->GetRoot());
@@ -271,12 +266,15 @@ ControllerContainer::CreateController(const int32_t aControllerIndex, const int3
 }
 
 void
-ControllerContainer::SetImmersiveBeamTransform(const int32_t aControllerIndex,
-        const vrb::Matrix& aImmersiveBeamTransform) {
+ControllerContainer::SetGripTransform(const int32_t aControllerIndex, const vrb::Matrix& aTransform) {
   if (!m.Contains(aControllerIndex)) {
     return;
   }
-  m.list[aControllerIndex].immersiveBeamTransform = aImmersiveBeamTransform;
+  Controller& controller = m.list[aControllerIndex];
+  controller.gripTransformMatrix = aTransform;
+  if (controller.gripTransform) {
+    controller.gripTransform->SetTransform(aTransform);
+  }
 }
 
 void
@@ -284,9 +282,10 @@ ControllerContainer::SetBeamTransform(const int32_t aControllerIndex, const vrb:
   if (!m.Contains(aControllerIndex)) {
     return;
   }
-  if (m.list[aControllerIndex].beamParent) {
-    m.list[aControllerIndex].beamParent->SetTransform(aBeamTransform);
+  if (m.list[aControllerIndex].beamTransform) {
+    m.list[aControllerIndex].beamTransform->SetTransform(aBeamTransform);
   }
+  m.list[aControllerIndex].beamTransformMatrix = aBeamTransform;
 }
 
 void
@@ -345,18 +344,6 @@ ControllerContainer::SetTargetRayMode(const int32_t aControllerIndex, device::Ta
   }
   Controller& controller = m.list[aControllerIndex];
   controller.targetRayMode = aMode;
-}
-
-void
-ControllerContainer::SetTransform(const int32_t aControllerIndex, const vrb::Matrix& aTransform) {
-  if (!m.Contains(aControllerIndex)) {
-    return;
-  }
-  Controller& controller = m.list[aControllerIndex];
-  controller.transformMatrix = aTransform;
-  if (controller.transform) {
-    controller.transform->SetTransform(aTransform);
-  }
 }
 
 void
@@ -574,7 +561,8 @@ ControllerContainer::SetVisible(const bool aVisible) {
   if (aVisible) {
     for (int i = 0; i < m.list.size(); ++i) {
       if (m.list[i].enabled) {
-        m.root->ToggleChild(*m.list[i].transform, true);
+        m.root->ToggleChild(*m.list[i].gripTransform, true);
+        m.root->ToggleChild(*m.list[i].beamToggle, true);
       }
     }
   } else {
@@ -585,6 +573,14 @@ ControllerContainer::SetVisible(const bool aVisible) {
 void
 ControllerContainer::SetGazeModeIndex(const int32_t aControllerIndex) {
   m.gazeIndex = aControllerIndex;
+}
+
+void
+ControllerContainer::SetInteractionProfiles(const int32_t aControllerIndex, std::vector<std::string>&& aProfiles) {
+  if (!m.Contains(aControllerIndex)) {
+    return;
+  }
+  m.list[aControllerIndex].interactionProfiles = std::move(aProfiles);
 }
 
 void

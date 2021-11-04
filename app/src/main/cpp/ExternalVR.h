@@ -43,7 +43,7 @@ public:
                       const double aRightDegrees,
                       const double aTopDegrees,
                       const double aBottomDegrees) override;
-  void SetEyeOffset(const device::Eye aEye, const float aX, const float aY, const float aZ) override;
+  void SetEyeTransform(const device::Eye aEye, const vrb::Matrix& aTransform) override;
   void SetEyeResolution(const int32_t aX, const int32_t aY) override;
   void SetNativeFramebufferScaleFactor(const float aScale) override;
   void SetStageSize(const float aWidth, const float aDepth) override;

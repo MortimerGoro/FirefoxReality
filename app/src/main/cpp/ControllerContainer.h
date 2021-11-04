@@ -37,8 +37,7 @@ public:
   // crow::ControllerDelegate interface
   uint32_t GetControllerCount() override;
   void CreateController(const int32_t aControllerIndex, const int32_t aModelIndex, const std::string& aImmersiveName) override;
-  void CreateController(const int32_t aControllerIndex, const int32_t aModelIndex, const std::string& aImmersiveName, const vrb::Matrix& aBeamTransform) override;
-  void SetImmersiveBeamTransform(const int32_t aControllerIndex, const vrb::Matrix& aImmersiveBeamTransform) override;
+  void SetGripTransform(const int32_t aControllerIndex, const vrb::Matrix& aTransform) override;
   void SetBeamTransform(const int32_t aControllerIndex, const vrb::Matrix& aBeamTransform) override;
   void SetFocused(const int32_t aControllerIndex) override;
   void DestroyController(const int32_t aControllerIndex) override;
@@ -46,7 +45,6 @@ public:
   void SetEnabled(const int32_t aControllerIndex, const bool aEnabled) override;
   void SetControllerType(const int32_t aControllerIndex, device::DeviceType aType) override;
   void SetTargetRayMode(const int32_t aControllerIndex, device::TargetRayMode aMode) override;
-  void SetTransform(const int32_t aControllerIndex, const vrb::Matrix& aTransform) override;
   void SetButtonCount(const int32_t aControllerIndex, const uint32_t aNumButtons) override;
   void SetButtonState(const int32_t aControllerIndex, const Button aWhichButton, const int32_t aImmersiveIndex, const bool aPressed, const bool aTouched, const float aImmersiveTrigger = -1.0f) override;
   void SetAxes(const int32_t aControllerIndex, const float* aData, const uint32_t aLength) override;
@@ -67,6 +65,7 @@ public:
   bool IsVisible() const override;
   void SetVisible(const bool aVisible) override;
   void SetGazeModeIndex(const int32_t aControllerIndex) override;
+  void SetInteractionProfiles(const int32_t aControllerIndex, std::vector<std::string>&& aProfiles) override;
   void SetFrameId(const uint64_t aFrameId);
 protected:
   struct State;

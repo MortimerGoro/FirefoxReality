@@ -10,6 +10,7 @@
 #include "Device.h"
 #include "vrb/Forward.h"
 #include "vrb/Matrix.h"
+#include <vector>
 
 namespace crow {
 
@@ -38,13 +39,12 @@ struct Controller {
   double scrollStart;
   float scrollDeltaX;
   float scrollDeltaY;
-  vrb::TransformPtr transform;
+  vrb::TransformPtr gripTransform;
   vrb::TogglePtr beamToggle;
-  vrb::TransformPtr beamParent;
+  vrb::TransformPtr beamTransform;
   PointerPtr pointer;
-  vrb::Matrix transformMatrix;
+  vrb::Matrix gripTransformMatrix;
   vrb::Matrix beamTransformMatrix;
-  vrb::Matrix immersiveBeamTransform;
   std::string immersiveName;
   uint64_t immersivePressedState;
   uint64_t immersiveTouchedState;
@@ -71,6 +71,8 @@ struct Controller {
   uint64_t squeezeActionStopFrameId;
 
   int32_t batteryLevel;
+
+  std::vector<std::string> interactionProfiles;
 
   vrb::Vector StartPoint() const;
   vrb::Vector Direction() const;

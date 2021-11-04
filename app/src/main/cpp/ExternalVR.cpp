@@ -124,7 +124,7 @@ struct ExternalVR::State {
   mozilla::gfx::VRSystemState system = {};
   mozilla::gfx::VRBrowserState browser = {};
   // device::CapabilityFlags deviceCapabilities = 0;
-  vrb::Vector eyeOffsets[device::EyeCount];
+  vrb::Matrix eyeTransforms[device::EyeCount];
   uint64_t lastFrameId = 0;
   bool firstPresentingFrame = false;
   bool compositorEnabled = true;
@@ -321,14 +321,12 @@ ExternalVR::SetFieldOfView(const device::Eye aEye, const double aLeftDegrees,
 }
 
 void
-ExternalVR::SetEyeOffset(const device::Eye aEye, const float aX, const float aY, const float aZ) {
+ExternalVR::SetEyeTransform(const device::Eye aEye, const vrb::Matrix &aTransform) {
   mozilla::gfx::VRDisplayState::Eye which = (aEye == device::Eye::Right
                                              ? mozilla::gfx::VRDisplayState::Eye_Right
                                              : mozilla::gfx::VRDisplayState::Eye_Left);
-  m.system.displayState.eyeTranslation[which].x = aX;
-  m.system.displayState.eyeTranslation[which].y = aY;
-  m.system.displayState.eyeTranslation[which].z = aZ;
-  m.eyeOffsets[device::EyeIndex(aEye)].Set(aX, aY, aZ);
+  memcpy(&(m.system.displayState.eyeTransform[which]), aTransform.Data(), sizeof(aTransform));
+  m.eyeTransforms[device::EyeIndex(aEye)] = aTransform;
 }
 
 void
@@ -456,20 +454,17 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
   const vrb::Matrix inverseHeadTransform = aHeadTransform.Inverse();
   vrb::Quaternion quaternion(inverseHeadTransform);
   vrb::Vector translation = aHeadTransform.GetTranslation();
-  memcpy(&(m.system.sensorState.pose.orientation), quaternion.Data(),
-         sizeof(m.system.sensorState.pose.orientation));
-  memcpy(&(m.system.sensorState.pose.position), translation.Data(),
-         sizeof(m.system.sensorState.pose.position));
+  memcpy(&(m.system.sensorState.pose.orientation), quaternion.Data(), sizeof(m.system.sensorState.pose.orientation));
+  memcpy(&(m.system.sensorState.pose.position), translation.Data(),sizeof(m.system.sensorState.pose.position));
   m.system.sensorState.inputFrameID++;
   m.system.displayState.lastSubmittedFrameId = m.lastFrameId;
 
-  vrb::Matrix leftView = vrb::Matrix::Position(-m.eyeOffsets[device::EyeIndex(device::Eye::Left)]).PostMultiply(inverseHeadTransform);
-  vrb::Matrix rightView = vrb::Matrix::Position(-m.eyeOffsets[device::EyeIndex(device::Eye::Right)]).PostMultiply(inverseHeadTransform);
+  vrb::Matrix leftView = aHeadTransform.PostMultiply(m.eyeTransforms[device::EyeIndex(device::Eye::Left)]).AfineInverse();
+  vrb::Matrix rightView = aHeadTransform.PostMultiply(m.eyeTransforms[device::EyeIndex(device::Eye::Right)]).AfineInverse();
   memcpy(&(m.system.sensorState.leftViewMatrix), leftView.Data(),
          sizeof(m.system.sensorState.leftViewMatrix));
   memcpy(&(m.system.sensorState.rightViewMatrix), rightView.Data(),
          sizeof(m.system.sensorState.rightViewMatrix));
-
 
   memset(m.system.controllerState, 0, sizeof(m.system.controllerState));
   for (int i = 0; i < aControllers.size(); ++i) {
@@ -479,6 +474,15 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
     }
     mozilla::gfx::VRControllerState& immersiveController = m.system.controllerState[i];
     memcpy(immersiveController.controllerName, controller.immersiveName.c_str(), controller.immersiveName.size() + 1);
+
+    assert(controller.interactionProfiles.size() <= mozilla::gfx::kMaxInteractionProfilesMaxCount);
+    memset(&immersiveController.interactionProfiles, 0, sizeof(immersiveController.interactionProfiles));
+    for (int j = 0; j < controller.interactionProfiles.size() && j < mozilla::gfx::kMaxInteractionProfilesMaxCount; ++j) {
+      assert(controller.interactionProfiles[j].size() <= mozilla::gfx::kMaxInteractionProfileMaxLen);
+      strncpy(immersiveController.interactionProfiles[j], controller.interactionProfiles[j].c_str(), mozilla::gfx::kMaxInteractionProfileMaxLen - 1);
+      immersiveController.interactionProfiles[j][mozilla::gfx::kMaxInteractionProfileMaxLen - 1] = 0;
+    }
+
     immersiveController.numButtons = controller.numButtons;
     immersiveController.buttonPressed = controller.immersivePressedState;
     immersiveController.buttonTouched = controller.immersiveTouchedState;
@@ -491,36 +495,34 @@ ExternalVR::PushFramePoses(const vrb::Matrix& aHeadTransform, const std::vector<
     }
     immersiveController.numHaptics = controller.numHaptics;
     immersiveController.hand = controller.leftHanded ? mozilla::gfx::ControllerHand::Left : mozilla::gfx::ControllerHand::Right;
+#if defined(OPENXR)
+    immersiveController.type = mozilla::gfx::VRControllerType::WebXR;
+#else
     immersiveController.type = GetVRControllerTypeByDevice(controller.type);
+#endif
 
     const uint16_t flags = GetControllerCapabilityFlags(controller.deviceCapabilities);
     immersiveController.flags = static_cast<mozilla::gfx::ControllerCapabilityFlags>(flags);
-    const vrb::Matrix beamTransform = controller.transformMatrix.PostMultiply(controller.immersiveBeamTransform);
+
+    const vrb::Matrix beamTransform = controller.beamTransformMatrix;
     if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Orientation)) {
       immersiveController.isOrientationValid = true;
-
-      vrb::Quaternion rotate;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
-        rotate = controller.transformMatrix;
-        rotate = rotate.Inverse();
-        memcpy(&(immersiveController.pose.orientation), rotate.Data(), sizeof(immersiveController.pose.orientation));
+      vrb::Vector beamPosition = beamTransform.GetTranslation();
+      memcpy(&immersiveController.targetRayPose.position, beamPosition.Data(),sizeof(immersiveController.targetRayPose.position));
+      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position) || flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_PositionEmulated)) {
+        immersiveController.isPositionValid = true;
+        vrb::Quaternion beamOrientation(beamTransform.AfineInverse());
+        memcpy(&immersiveController.targetRayPose.orientation, beamOrientation.Data(),sizeof(immersiveController.targetRayPose.orientation));
       }
-      rotate.SetFromRotationMatrix(beamTransform);
-      rotate = rotate.Inverse();
-      memcpy(&(immersiveController.targetRayPose.orientation), rotate.Data(), sizeof(immersiveController.targetRayPose.orientation));
     }
-    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_Position) ||
-      flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_PositionEmulated)) {
-      immersiveController.isPositionValid = true;
 
-      vrb::Vector position;
-      if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
-        position = controller.transformMatrix.GetTranslation();
-        memcpy(&(immersiveController.pose.position), position.Data(), sizeof(immersiveController.pose.position));
-      }
-      position = beamTransform.GetTranslation();
-      memcpy(&(immersiveController.targetRayPose.position), position.Data(), sizeof(immersiveController.targetRayPose.position));
+    if (flags & static_cast<uint16_t>(mozilla::gfx::ControllerCapabilityFlags::Cap_GripSpacePosition)) {
+      vrb::Vector gripPosition = controller.gripTransformMatrix.GetTranslation();
+      vrb::Quaternion gripOrientation(controller.gripTransformMatrix.AfineInverse());
+      memcpy(&immersiveController.gripPose.position, gripPosition.Data(),sizeof(immersiveController.gripPose.position));
+      memcpy(&immersiveController.gripPose.orientation, gripOrientation.Data(),sizeof(immersiveController.gripPose.orientation));
     }
+
     // TODO:: We should add TargetRayMode::_end in moz_external_vr.h to help this check.
     assert((uint8_t)mozilla::gfx::TargetRayMode::Screen == (uint8_t)device::TargetRayMode::Screen);
     immersiveController.targetRayMode = (mozilla::gfx::TargetRayMode)controller.targetRayMode;

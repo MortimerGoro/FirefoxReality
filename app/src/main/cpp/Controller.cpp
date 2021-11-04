@@ -45,13 +45,12 @@ Controller::operator=(const Controller& aController) {
   scrollStart = aController.scrollStart;
   scrollDeltaX = aController.scrollDeltaX;
   scrollDeltaY = aController.scrollDeltaY;
-  transform = aController.transform;
+  gripTransform = aController.gripTransform;
   beamToggle = aController.beamToggle;
-  beamParent = aController.beamParent;
+  beamTransform = aController.beamTransform;
   pointer = aController.pointer;
-  transformMatrix = aController.transformMatrix;
+  gripTransformMatrix = aController.gripTransformMatrix;
   beamTransformMatrix = aController.beamTransformMatrix;
-  immersiveBeamTransform = aController.immersiveBeamTransform;
   immersiveName = aController.immersiveName;
   immersivePressedState = aController.immersivePressedState;
   immersiveTouchedState = aController.immersiveTouchedState;
@@ -74,6 +73,7 @@ Controller::operator=(const Controller& aController) {
   squeezeActionStartFrameId = aController.squeezeActionStartFrameId;
   squeezeActionStopFrameId = aController.squeezeActionStopFrameId;
   batteryLevel = aController.batteryLevel;
+  interactionProfiles = aController.interactionProfiles;
   return *this;
 }
 
@@ -91,13 +91,12 @@ Controller::Reset() {
   lastTouchX = lastTouchY = 0.0f;
   scrollStart = -1.0;
   scrollDeltaX = scrollDeltaY = 0.0f;
-  transform = nullptr;
+  gripTransform = nullptr;
   beamToggle = nullptr;
-  beamParent = nullptr;
+  beamTransform = nullptr;
   pointer = nullptr;
-  transformMatrix = Matrix::Identity();
+  gripTransformMatrix = Matrix::Identity();
   beamTransformMatrix = Matrix::Identity();
-  immersiveBeamTransform = Matrix::Identity();
   immersiveName.clear();
   immersivePressedState = 0;
   immersiveTouchedState = 0;
@@ -119,20 +118,21 @@ Controller::Reset() {
   squeezeActionStartFrameId = 0;
   squeezeActionStopFrameId = 0;
   batteryLevel = -1;
+  interactionProfiles.clear();
 }
 
 vrb::Vector Controller::StartPoint() const {
-  return transformMatrix.MultiplyPosition(beamTransformMatrix.MultiplyPosition(vrb::Vector()));
+  return beamTransformMatrix.MultiplyPosition(vrb::Vector());
 }
 
 vrb::Vector Controller::Direction() const {
-  return transformMatrix.MultiplyDirection(beamTransformMatrix.MultiplyDirection(vrb::Vector(0.0f, 0.0f, -1.0f)));
+  return beamTransformMatrix.MultiplyDirection(vrb::Vector(0.0f, 0.0f, -1.0f));
 }
 
 void
 Controller::DetachRoot() {
-  if (transform) {
-    transform->RemoveFromParents();
+  if (gripTransform) {
+    gripTransform->RemoveFromParents();
   }
 }
 

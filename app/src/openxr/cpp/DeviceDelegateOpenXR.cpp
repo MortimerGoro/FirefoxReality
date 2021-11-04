@@ -612,7 +612,7 @@ DeviceDelegateOpenXR::ProcessEvents() {
       }
       case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: {
         if (m.input) {
-          m.input->UpdateInteractionProfile();
+          m.input->UpdateInteractionProfile(*m.controller.get());
           if (m.controllersReadyCallback && m.input->AreControllersReady()) {
             m.controllersReadyCallback();
             m.controllersReadyCallback = nullptr;
@@ -721,7 +721,9 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
     for (int i = 0; i < m.views.size(); ++i) {
       const XrView &view = m.views[i];
       const device::Eye eye = i == 0 ? device::Eye::Left : device::Eye::Right;
-      m.immersiveDisplay->SetEyeOffset(eye, view.pose.position.x, view.pose.position.y, view.pose.position.z);
+      vrb::Matrix eyeTransform = XrPoseToMatrix(view.pose);
+      m.immersiveDisplay->SetEyeTransform(eye, eyeTransform);
+      m.cameras[i]->SetEyeTransform(eyeTransform);
     }
   }
 

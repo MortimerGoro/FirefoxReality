@@ -59,7 +59,7 @@ XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
   attachInfo.actionSets = actionSets.data();
   RETURN_IF_XR_FAILED(xrAttachSessionActionSets(mSession, &attachInfo));
 
-  UpdateInteractionProfile();
+  UpdateInteractionProfile(delegate);
 
   return XR_SUCCESS;
 }
@@ -107,10 +107,10 @@ std::string OpenXRInput::GetControllerModelName(const int32_t aModelIndex) const
   return mInputSources.at(aModelIndex)->ControllerModelName();
 }
 
-void OpenXRInput::UpdateInteractionProfile()
+void OpenXRInput::UpdateInteractionProfile(ControllerDelegate& delegate)
 {
   for (auto& input : mInputSources) {
-    input->UpdateInteractionProfile();
+    input->UpdateInteractionProfile(delegate);
   }
 }
 

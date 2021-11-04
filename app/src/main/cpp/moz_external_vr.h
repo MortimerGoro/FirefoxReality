@@ -68,6 +68,8 @@ static const int kVRControllerMaxButtons = 64;
 static const int kVRControllerMaxAxis = 16;
 static const int kVRLayerMaxCount = 8;
 static const int kVRHapticsMaxCount = 32;
+static const int kMaxInteractionProfilesMaxCount = 4;
+static const int kMaxInteractionProfileMaxLen = 256;
 
 #if defined(__ANDROID__)
 typedef uint64_t VRLayerTextureHandle;
@@ -119,7 +121,7 @@ enum class ControllerCapabilityFlags : uint16_t {
    */
   Cap_LinearAcceleration = 1 << 4,
   /**
-   * Cap_TargetRaySpacePosition is set if the Gamepad has a grip space position.
+   * Cap_GripSpacePosition is set if the Gamepad has a grip space position.
    */
   Cap_GripSpacePosition = 1 << 5,
   /**
@@ -150,6 +152,7 @@ enum class VRControllerType : uint8_t {
   PicoGaze,
   PicoG2,
   PicoNeo2,
+  WebXR,
   _end
 };
 
@@ -343,7 +346,7 @@ struct VRDisplayState {
   VRDisplayCapabilityFlags capabilityFlags;
   VRDisplayBlendMode blendMode;
   VRFieldOfView eyeFOV[VRDisplayState::NumEyes];
-  Point3D_POD eyeTranslation[VRDisplayState::NumEyes];
+  float eyeTransform[VRDisplayState::NumEyes][16];
   IntSize_POD eyeResolution;
   float nativeFramebufferScaleFactor;
   bool suppressFrames;
@@ -409,6 +412,7 @@ struct VRControllerState {
   uint64_t buttonTouched;
   float triggerValue[kVRControllerMaxButtons];
   float axisValue[kVRControllerMaxAxis];
+  char interactionProfiles[kMaxInteractionProfilesMaxCount][kMaxInteractionProfileMaxLen];
 
 #ifdef MOZILLA_INTERNAL_API
   dom::GamepadCapabilityFlags flags;
@@ -419,10 +423,9 @@ struct VRControllerState {
   // When Cap_Position is set in flags, pose corresponds
   // to the controllers' pose in grip space:
   // https://immersive-web.github.io/webxr/#dom-xrinputsource-gripspace
-  VRPose pose;
+  VRPose gripPose;
 
-  // When Cap_TargetRaySpacePosition is set in flags, targetRayPose corresponds
-  // to the controllers' pose in target ray space:
+  // targetRayPose corresponds to the controllers' pose in target ray space:
   // https://immersive-web.github.io/webxr/#dom-xrinputsource-targetrayspace
   VRPose targetRayPose;
 

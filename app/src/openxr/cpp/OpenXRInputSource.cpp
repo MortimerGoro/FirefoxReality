@@ -438,22 +438,24 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
       flags |= device::PositionEmulated;
     }
 
-    delegate.SetTransform(mIndex, pointerTransform);
+    delegate.SetBeamTransform(mIndex, pointerTransform);
 
     isPoseActive = false;
     poseLocation = { XR_TYPE_SPACE_LOCATION };
     CHECK_XRCMD(GetPoseState(mGripAction, mGripSpace, localSpace, frameState,  isPoseActive, poseLocation));
     if (isPoseActive) {
-        // auto gripTransform = XrPoseToMatrix(poseLocation.pose);
-        // TODO: Gecko is doing wrong math with the beam transform. Pass a indentity for now.
-        delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());
         flags |= device::GripSpacePosition;
-        // TODO: Use grip transform when the new 3D models lands (hardcoded Oculus Quest 1 controllers now)
-        float multiplier = mHandeness == OpenXRHandFlags::Left ? -1.0f : 1.0f;
-        delegate.SetBeamTransform(mIndex, vrb::Matrix::Translation(vrb::Vector(0.011f * multiplier, -0.007f, 0.0f)));
-
+        auto gripTransform = XrPoseToMatrix(poseLocation.pose);
+        //gripTransform.TranslateInPlace(kAverageHeight);
+        delegate.SetGripTransform(mIndex, gripTransform.AfineInverse());
+        if (false && renderMode == device::RenderMode::StandAlone) {
+          // TODO: Use custom grip transform until the new 3D models land (hardcoded for Oculus Quest 1 controllers now)
+          float multiplier = mHandeness == OpenXRHandFlags::Left ? 1.0f : -1.0f;
+          auto translation = vrb::Matrix::Translation(vrb::Vector(0.011f * multiplier, 0.007f, 0.0f));
+          delegate.SetGripTransform(mIndex, pointerTransform.PostMultiply(translation));
+        }
     } else {
-        delegate.SetImmersiveBeamTransform(mIndex, vrb::Matrix::Identity());
+        delegate.SetGripTransform(mIndex, pointerTransform);
     }
 
     delegate.SetCapabilityFlags(mIndex, flags);
@@ -551,7 +553,7 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     delegate.SetAxes(mIndex, axesContainer.data(), axesContainer.size());
 }
 
-XrResult OpenXRInputSource::UpdateInteractionProfile()
+XrResult OpenXRInputSource::UpdateInteractionProfile(ControllerDelegate& delegate)
 {
     XrInteractionProfileState state { XR_TYPE_INTERACTION_PROFILE_STATE };
     RETURN_IF_XR_FAILED(xrGetCurrentInteractionProfile(mSession, mSubactionPath, &state));
@@ -572,6 +574,13 @@ XrResult OpenXRInputSource::UpdateInteractionProfile()
             break;
         }
     }
+
+    std::vector<std::string> profiles;
+    for (auto name: mActiveMapping->profiles) {
+      profiles.emplace_back(name);
+    }
+
+    delegate.SetInteractionProfiles(mIndex, std::move(profiles));
 
     return XR_SUCCESS;
 }

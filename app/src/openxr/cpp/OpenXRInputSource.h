@@ -73,7 +73,7 @@ public:
     XrResult SuggestBindings(SuggestedBindings&) const;
     void Update(const XrFrameState&, XrSpace, const vrb::Matrix& head, device::RenderMode, ControllerDelegate& delegate);
     XrActionSet ActionSet() const { return mActionSet; }
-    XrResult UpdateInteractionProfile();
+    XrResult UpdateInteractionProfile(ControllerDelegate& delegate);
     std::string ControllerModelName() const;
     OpenXRInputMapping* GetActiveMapping() const { return mActiveMapping; }
 };

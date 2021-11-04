@@ -32,7 +32,7 @@ public:
   XrResult Update(const XrFrameState& frameState, XrSpace baseSpace, const vrb::Matrix& head, device::RenderMode renderMode, ControllerDelegate& delegate);
   int32_t GetControllerModelCount() const;
   std::string GetControllerModelName(const int32_t aModelIndex) const;
-  void UpdateInteractionProfile();
+  void UpdateInteractionProfile(ControllerDelegate& delegate);
   bool AreControllersReady() const;
 
   ~OpenXRInput();
